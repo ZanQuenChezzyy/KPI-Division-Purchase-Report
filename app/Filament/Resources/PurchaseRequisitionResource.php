@@ -15,6 +15,11 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
+use Filament\Infolists\Components\Fieldset;
+use Filament\Infolists\Components\RepeatableEntry;
+use Filament\Infolists\Components\Section as InfoSection;
+use Filament\Infolists\Components\TextEntry;
+use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
 use Filament\Support\RawJs;
 use Filament\Tables;
@@ -25,9 +30,11 @@ use Filament\Tables\Actions\DeleteBulkAction;
 use Filament\Tables\Actions\EditAction;
 use Filament\Tables\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Carbon;
 
 class PurchaseRequisitionResource extends Resource
 {
@@ -120,9 +127,12 @@ class PurchaseRequisitionResource extends Resource
                                     ->columnSpanFull()
                                     ->live()
                                     ->afterStateUpdated(function ($state, callable $set) {
-                                        if ($state === '1' || $state === '2') {
+                                        if ($state === '2') { // Jika status 'Approved'
                                             $set('approved_at', now());
+                                            $set('cancelled_at', null); // Set cancelled_at menjadi null
+                                        } elseif ($state === '1') { // Jika status 'Cancelled'
                                             $set('cancelled_at', now());
+                                            $set('approved_at', null); // Set approved_at menjadi null
                                         }
                                     })
                                     ->columnSpan(fn(Get $get) => in_array($get('status'), ['0', null]) ? 2 : 1)
@@ -133,15 +143,15 @@ class PurchaseRequisitionResource extends Resource
                                     ->label('Approved At')
                                     ->placeholder('Select Approved Date')
                                     ->native(false)
-                                    ->visible(fn(Get $get): bool => $get('status') === '2')
-                                    ->required(fn(Get $get): bool => $get('status') === '2'),
+                                    ->dehydratedWhenHidden()
+                                    ->hidden(fn(Get $get): bool => $get('status') !== '2'),
 
                                 DatePicker::make('cancelled_at')
                                     ->label('Cancelled At')
                                     ->placeholder('Select Cancelled Date')
                                     ->native(false)
-                                    ->visible(fn(Get $get): bool => $get('status') === '1')
-                                    ->required(fn(Get $get): bool => $get('status') === '1'),
+                                    ->dehydratedWhenHidden()
+                                    ->hidden(fn(Get $get): bool => $get('status') !== '1'),
                             ])->columns(2)
                             ->columnSpan(1),
                         Section::make('Purchase Items')
@@ -203,17 +213,111 @@ class PurchaseRequisitionResource extends Resource
             ])->columns(2);
     }
 
+    public static function infolist(Infolist $infolist): Infolist
+    {
+        return $infolist
+            ->schema([
+                InfoSection::make('Purchase Requisition')
+                    ->schema([
+                        Fieldset::make('Status & Approval')
+                            ->schema([
+                                TextEntry::make('status')
+                                    ->label('Status')
+                                    ->badge()
+                                    ->icon(fn(int $state): string => match ($state) {
+                                        0 => 'heroicon-o-clock',
+                                        1 => 'heroicon-o-x-circle',
+                                        2 => 'heroicon-o-check-circle',
+                                    })
+                                    ->formatStateUsing(fn(int $state): string => match ($state) {
+                                        0 => 'Pending',
+                                        1 => 'Cancelled',
+                                        2 => 'Approved',
+                                        default => 'Status Tidak Diketahui',
+                                    })
+                                    ->color(fn(int $state): string => match ($state) {
+                                        0 => 'warning',
+                                        1 => 'danger',
+                                        2 => 'success',
+                                        default => 'gray',
+                                    }),
+                                TextEntry::make('approved_at')
+                                    ->label('Approved At')
+                                    ->formatStateUsing(fn($state): string => $state ? Carbon::parse($state)->translatedFormat('l, d F Y') : '-')
+                                    ->visible(fn($record): bool => $record->status === 2),
+
+                                TextEntry::make('cancelled_at')
+                                    ->label('Cancelled At')
+                                    ->formatStateUsing(fn($state): string => $state ? Carbon::parse($state)->translatedFormat('l, d F Y') : '-')
+                                    ->visible(fn($record): bool => $record->status === 1),
+                            ])->columns(2)
+                            ->columnSpan(4),
+                        Fieldset::make('Timestamps')
+                            ->schema([
+                                TextEntry::make('created_at')
+                                    ->label('Created At')
+                                    ->dateTime(),
+                                TextEntry::make('updated_at')
+                                    ->label('Updated At')
+                                    ->dateTime(),
+                            ])->columns(2)
+                            ->columnSpan(2),
+                        Fieldset::make('General Information')
+                            ->schema([
+                                TextEntry::make('number')
+                                    ->label('Number'),
+                                TextEntry::make('purchaseType.name')
+                                    ->label('Purchase Type')
+                                    ->badge()
+                                    ->color('info'),
+                            ])->columns(2)
+                            ->columnSpan(3),
+                        Fieldset::make('Requester Details')
+                            ->schema([
+                                TextEntry::make('requested_by')
+                                    ->label('Requested By'),
+                                TextEntry::make('department.name')
+                                    ->label('Department')
+                            ])->columns(2)
+                            ->columnSpan(3),
+                        Fieldset::make('Description')
+                            ->schema([
+                                TextEntry::make('description')
+                                    ->label('')
+                            ])->columns(1)
+                            ->columnSpan(3),
+                        RepeatableEntry::make('purchaseRequisitionItems')
+                            ->label('Purchase Requisition Items')
+                            ->schema([
+                                TextEntry::make('Item.name')
+                                    ->label('Item Name')
+                                    ->columnSpan(3),
+                                TextEntry::make('qty')
+                                    ->prefix('x ')
+                                    ->columnSpan(1),
+                                TextEntry::make('total_price')
+                                    ->prefix('Rp ')
+                                    ->suffix('.00')
+                                    ->numeric()
+                                    ->columnSpan(2)
+                            ])->columns(6)
+                            ->columnSpan(3)
+                    ])->columns(6)
+            ]);
+    }
+
     public static function table(Table $table): Table
     {
         return $table
             ->columns([
                 TextColumn::make('number')
                     ->label('Number')
-                    ->numeric()
                     ->sortable(),
 
                 TextColumn::make('purchaseType.name')
                     ->label('Purchase Type')
+                    ->badge()
+                    ->color('info')
                     ->sortable(),
 
                 TextColumn::make('requested_by')
@@ -224,29 +328,31 @@ class PurchaseRequisitionResource extends Resource
                     ->badge()
                     ->icon(fn(int $state): string => match ($state) {
                         0 => 'heroicon-o-clock',
-                        1 => 'heroicon-o-check-circle',
-                        2 => 'heroicon-o-x-circle',
+                        1 => 'heroicon-o-x-circle',
+                        2 => 'heroicon-o-check-circle',
                     })
                     ->formatStateUsing(fn(int $state): string => match ($state) {
                         0 => 'Pending',
-                        1 => 'Approved',
-                        2 => 'Cancelled',
+                        1 => 'Cancelled',
+                        2 => 'Approved',
                         default => 'Status Tidak Diketahui',
                     })
                     ->color(fn(int $state): string => match ($state) {
                         0 => 'warning',
-                        1 => 'success',
-                        2 => 'danger',
+                        1 => 'danger',
+                        2 => 'success',
                         default => 'gray',  // Jika status tidak diketahui
                     }),
 
                 TextColumn::make('approved_at')
                     ->date()
+                    ->placeholder('No Approval Recorded.')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('cancelled_at')
                     ->date()
+                    ->placeholder('No Cancellation Recorded.')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
 
@@ -261,13 +367,30 @@ class PurchaseRequisitionResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                //
+                SelectFilter::make('status')
+                    ->label('Status')
+                    ->placeholder('Select Status')
+                    ->options([
+                        0 => 'Pending',
+                        1 => 'Cancelled',
+                        2 => 'Approved',
+                    ])
+                    ->native(false)
+                    ->preload()
+                    ->searchable(),
+                SelectFilter::make('purchase_type_id')
+                    ->label('Purchase Type')
+                    ->placeholder('Select Purchase Type')
+                    ->relationship('purchaseType', 'name')
+                    ->native(false)
+                    ->preload()
+                    ->searchable(),
             ])
             ->actions([
                 ActionGroup::make([
                     ViewAction::make(),
                     EditAction::make()
-                        ->color('primary'),
+                        ->color('info'),
                     DeleteAction::make(),
                 ])
                     ->icon('heroicon-o-ellipsis-horizontal-circle')

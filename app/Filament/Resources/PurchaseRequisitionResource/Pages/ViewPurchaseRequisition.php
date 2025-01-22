@@ -13,7 +13,10 @@ class ViewPurchaseRequisition extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
-            Actions\EditAction::make(),
+            Actions\EditAction::make()
+                ->label('Edit Purchase Requisition')
+                ->icon('heroicon-s-pencil-square')
+                ->color('info'),
         ];
     }
 }

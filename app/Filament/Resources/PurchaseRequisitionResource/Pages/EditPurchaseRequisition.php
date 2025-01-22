@@ -13,8 +13,12 @@ class EditPurchaseRequisition extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Actions\ViewAction::make(),
-            Actions\DeleteAction::make(),
+            Actions\ViewAction::make()
+                ->label('View Purchase Requisition')
+                ->icon('heroicon-s-eye'),
+            Actions\DeleteAction::make()
+                ->label('Delete Purchase Requisition')
+                ->icon('heroicon-s-trash'),
         ];
     }
 }
