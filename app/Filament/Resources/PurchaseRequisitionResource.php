@@ -221,8 +221,24 @@ class PurchaseRequisitionResource extends Resource
                     ->searchable(['department.name', 'requested_by']),
 
                 TextColumn::make('status')
-                    ->numeric()
-                    ->sortable(),
+                    ->badge()
+                    ->icon(fn(int $state): string => match ($state) {
+                        0 => 'heroicon-o-clock',
+                        1 => 'heroicon-o-check-circle',
+                        2 => 'heroicon-o-x-circle',
+                    })
+                    ->formatStateUsing(fn(int $state): string => match ($state) {
+                        0 => 'Pending',
+                        1 => 'Approved',
+                        2 => 'Cancelled',
+                        default => 'Status Tidak Diketahui',
+                    })
+                    ->color(fn(int $state): string => match ($state) {
+                        0 => 'warning',
+                        1 => 'success',
+                        2 => 'danger',
+                        default => 'gray',  // Jika status tidak diketahui
+                    }),
 
                 TextColumn::make('approved_at')
                     ->date()
