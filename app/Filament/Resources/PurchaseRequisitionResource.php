@@ -127,12 +127,12 @@ class PurchaseRequisitionResource extends Resource
                                     ->columnSpanFull()
                                     ->live()
                                     ->afterStateUpdated(function ($state, callable $set) {
-                                        if ($state === '2') { // Jika status 'Approved'
+                                        if ($state === '2') {
                                             $set('approved_at', now());
-                                            $set('cancelled_at', null); // Set cancelled_at menjadi null
-                                        } elseif ($state === '1') { // Jika status 'Cancelled'
+                                            $set('cancelled_at', null);
+                                        } elseif ($state === '1') {
                                             $set('cancelled_at', now());
-                                            $set('approved_at', null); // Set approved_at menjadi null
+                                            $set('approved_at', null);
                                         }
                                     })
                                     ->columnSpan(fn(Get $get) => in_array($get('status'), ['0', null]) ? 2 : 1)
@@ -144,14 +144,14 @@ class PurchaseRequisitionResource extends Resource
                                     ->placeholder('Select Approved Date')
                                     ->native(false)
                                     ->dehydratedWhenHidden()
-                                    ->hidden(fn(Get $get): bool => $get('status') !== '2'),
+                                    ->hidden(fn(Get $get): bool => $get('status') !== '2' && !$get('approved_at') || $get('status') === '0'),
 
                                 DatePicker::make('cancelled_at')
                                     ->label('Cancelled At')
                                     ->placeholder('Select Cancelled Date')
                                     ->native(false)
                                     ->dehydratedWhenHidden()
-                                    ->hidden(fn(Get $get): bool => $get('status') !== '1'),
+                                    ->hidden(fn(Get $get): bool => $get('status') !== '1' && !$get('cancelled_at') || $get('status') === '0'),
                             ])->columns(2)
                             ->columnSpan(1),
                         Section::make('Purchase Items')
