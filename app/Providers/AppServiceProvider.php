@@ -7,6 +7,8 @@ use App\Filament\Pages\Dashboard;
 use App\Filament\Resources\PermissionResource;
 use App\Filament\Resources\RoleResource;
 use App\Filament\Resources\UserResource;
+use App\Models\PurchaseRequisition;
+use App\Observers\PurchaseRequisitionObserver;
 use Filament\Support\Facades\FilamentView;
 use Filament\View\PanelsRenderHook;
 use Illuminate\Support\Facades\Blade;
@@ -53,5 +55,8 @@ class AppServiceProvider extends ServiceProvider
                 PermissionResource::class,
             ]
         );
+
+        // Observers
+        PurchaseRequisition::observe(PurchaseRequisitionObserver::class);
     }
 }

@@ -4,6 +4,7 @@ namespace App\Filament\Resources\PurchaseRequisitionResource\Pages;
 
 use App\Filament\Resources\PurchaseRequisitionResource;
 use Filament\Actions;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 
 class EditPurchaseRequisition extends EditRecord
@@ -20,5 +21,12 @@ class EditPurchaseRequisition extends EditRecord
                 ->label('Delete Purchase Requisition')
                 ->icon('heroicon-s-trash'),
         ];
+    }
+    protected function getSavedNotification(): ?Notification
+    {
+        return Notification::make()
+            ->success()
+            ->title('Purchase Requisition Updated')
+            ->body('Purchase Requisition number ' . $this->record->number . ' has been updated successfully.');
     }
 }
