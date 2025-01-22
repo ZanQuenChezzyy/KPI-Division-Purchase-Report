@@ -251,7 +251,7 @@ class PurchaseRequisitionResource extends Resource
                                     ->formatStateUsing(fn($state): string => $state ? Carbon::parse($state)->translatedFormat('l, d F Y') : '-')
                                     ->visible(fn($record): bool => $record->status === 1),
                             ])->columns(2)
-                            ->columnSpan(4),
+                            ->columnSpan(5),
                         Fieldset::make('Timestamps')
                             ->schema([
                                 TextEntry::make('created_at')
@@ -261,7 +261,7 @@ class PurchaseRequisitionResource extends Resource
                                     ->label('Updated At')
                                     ->dateTime(),
                             ])->columns(2)
-                            ->columnSpan(2),
+                            ->columnSpan(3),
                         Fieldset::make('General Information')
                             ->schema([
                                 TextEntry::make('number')
@@ -271,7 +271,7 @@ class PurchaseRequisitionResource extends Resource
                                     ->badge()
                                     ->color('info'),
                             ])->columns(2)
-                            ->columnSpan(3),
+                            ->columnSpan(4),
                         Fieldset::make('Requester Details')
                             ->schema([
                                 TextEntry::make('requested_by')
@@ -279,13 +279,13 @@ class PurchaseRequisitionResource extends Resource
                                 TextEntry::make('department.name')
                                     ->label('Department')
                             ])->columns(2)
-                            ->columnSpan(3),
+                            ->columnSpan(4),
                         Fieldset::make('Description')
                             ->schema([
                                 TextEntry::make('description')
                                     ->label('')
                             ])->columns(1)
-                            ->columnSpan(3),
+                            ->columnSpan(4),
                         RepeatableEntry::make('purchaseRequisitionItems')
                             ->label('Purchase Requisition Items')
                             ->schema([
@@ -301,8 +301,8 @@ class PurchaseRequisitionResource extends Resource
                                     ->numeric()
                                     ->columnSpan(2)
                             ])->columns(6)
-                            ->columnSpan(3)
-                    ])->columns(6)
+                            ->columnSpan(4)
+                    ])->columns(8)
             ]);
     }
 
