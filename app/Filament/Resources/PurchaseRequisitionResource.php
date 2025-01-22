@@ -6,15 +6,25 @@ use App\Filament\Resources\PurchaseRequisitionResource\Pages;
 use App\Filament\Resources\PurchaseRequisitionResource\RelationManagers;
 use App\Models\PurchaseRequisition;
 use Filament\Forms;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Group;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
 use Filament\Resources\Resource;
 use Filament\Support\RawJs;
 use Filament\Tables;
+use Filament\Tables\Actions\ActionGroup;
+use Filament\Tables\Actions\BulkActionGroup;
+use Filament\Tables\Actions\DeleteAction;
+use Filament\Tables\Actions\DeleteBulkAction;
+use Filament\Tables\Actions\EditAction;
+use Filament\Tables\Actions\ViewAction;
+use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
@@ -46,24 +56,47 @@ class PurchaseRequisitionResource extends Resource
                     ->schema([
                         Section::make('General Information')
                             ->schema([
-                                Forms\Components\TextInput::make('number')
-                                    ->required()
-                                    ->numeric(),
-                                Forms\Components\Select::make('purchase_type_id')
-                                    ->relationship('purchaseType', 'name')
+                                TextInput::make('number')
+                                    ->label('Purchase Requisition Number')
+                                    ->placeholder('Enter Number')
+                                    ->minValue(1)
+                                    ->minLength(3)
+                                    ->maxLength(10)
+                                    ->numeric()
                                     ->required(),
-                                Forms\Components\Textarea::make('description')
+                                Select::make('purchase_type_id')
+                                    ->label('Purchase Type')
+                                    ->placeholder('Select Purchase Type')
+                                    ->relationship('purchaseType', 'name')
+                                    ->native(false)
+                                    ->preload()
+                                    ->searchable()
+                                    ->required(),
+                                Textarea::make('description')
+                                    ->label('Description')
+                                    ->placeholder('Enter Description')
+                                    ->minLength(10)
+                                    ->rows(3)
+                                    ->autosize()
                                     ->required()
                                     ->columnSpanFull(),
                             ])->columns(2)
                             ->columnSpan(1),
                         Section::make('Requester Details')
                             ->schema([
-                                Forms\Components\TextInput::make('requested_by')
-                                    ->required()
-                                    ->maxLength(45),
-                                Forms\Components\Select::make('department_id')
+                                TextInput::make('requested_by')
+                                    ->label('Requester By')
+                                    ->placeholder('Enter Requester Full Name')
+                                    ->minLength(3)
+                                    ->maxLength(45)
+                                    ->required(),
+                                Select::make('department_id')
+                                    ->label('Department')
+                                    ->placeholder('Select Department')
                                     ->relationship('department', 'name')
+                                    ->native(false)
+                                    ->preload()
+                                    ->searchable()
                                     ->required(),
                             ])->columns(2)
                             ->columnSpan(1),
@@ -72,18 +105,49 @@ class PurchaseRequisitionResource extends Resource
                     ->schema([
                         Section::make('Status & Approval')
                             ->schema([
-                                Forms\Components\TextInput::make('status')
-                                    ->required()
-                                    ->numeric()
+                                Select::make('status')
+                                    ->label('Purchase Requisition Status')
+                                    ->placeholder('Select Purchase Requisition Status')
+                                    ->options([
+                                        0 => 'Pending',
+                                        1 => 'Cancelled',
+                                        2 => 'Approved',
+                                    ])
+                                    ->native(false)
+                                    ->preload()
+                                    ->searchable()
+                                    ->reactive()
                                     ->columnSpanFull()
-                                    ->default(0),
-                                Forms\Components\DatePicker::make('approved_at'),
-                                Forms\Components\DatePicker::make('cancelled_at'),
+                                    ->live()
+                                    ->afterStateUpdated(function ($state, callable $set) {
+                                        if ($state === '1' || $state === '2') {
+                                            $set('approved_at', now());
+                                            $set('cancelled_at', now());
+                                        }
+                                    })
+                                    ->columnSpan(fn(Get $get) => in_array($get('status'), ['0', null]) ? 2 : 1)
+                                    ->default(0)
+                                    ->required(),
+
+                                DatePicker::make('approved_at')
+                                    ->label('Approved At')
+                                    ->placeholder('Select Approved Date')
+                                    ->native(false)
+                                    ->visible(fn(Get $get): bool => $get('status') === '2')
+                                    ->required(fn(Get $get): bool => $get('status') === '2'),
+
+                                DatePicker::make('cancelled_at')
+                                    ->label('Cancelled At')
+                                    ->placeholder('Select Cancelled Date')
+                                    ->native(false)
+                                    ->visible(fn(Get $get): bool => $get('status') === '1')
+                                    ->required(fn(Get $get): bool => $get('status') === '1'),
                             ])->columns(2)
                             ->columnSpan(1),
                         Section::make('Purchase Items')
                             ->schema([
                                 Repeater::make('Items')
+                                    ->label('Purchase Requisition Items')
                                     ->relationship('purchaseRequisitionItems')
                                     ->schema([
                                         Select::make('item_id')
@@ -93,11 +157,10 @@ class PurchaseRequisitionResource extends Resource
                                             ->native(false)
                                             ->preload()
                                             ->searchable()
-                                            ->reactive() // Aktifkan reactive untuk mendeteksi perubahan
+                                            ->reactive()
                                             ->afterStateUpdated(function ($state, callable $set) {
-                                                // Ambil harga satuan berdasarkan item_id yang dipilih
                                                 $unitPrice = \App\Models\Item::find($state)?->unit_price ?? 0;
-                                                $set('unit_price', $unitPrice); // Set nilai unit_price
+                                                $set('unit_price', $unitPrice);
                                             })
                                             ->columnSpan(3)
                                             ->required(),
@@ -117,23 +180,24 @@ class PurchaseRequisitionResource extends Resource
                                             ->afterStateUpdated(function ($state, callable $get, callable $set) {
                                                 $unitPrice = $get('unit_price') ?? 0;
                                                 $totalPrice = $unitPrice * $state;
-
                                                 $formattedTotalPrice = number_format($totalPrice, 0, '.', ',');
-
                                                 $set('total_price', $formattedTotalPrice);
                                             })
                                             ->columnSpan(1)
                                             ->required(),
                                         TextInput::make('total_price')
-                                            ->label('Total Price')
+                                            ->label('Price')
+                                            ->placeholder('Price')
                                             ->mask(RawJs::make('$money($input)'))
                                             ->stripCharacters(',')
                                             ->columnSpan(2)
                                             ->disabled()
                                             ->numeric()
-                                            ->dehydrated()
-                                            ->required(),
-                                    ])->columns(6),
+                                            ->dehydrated(),
+                                    ])->addActionLabel('Add Another Items')
+                                    ->reorderable(true)
+                                    ->reorderableWithButtons()
+                                    ->columns(6),
                             ])
                     ]),
             ])->columns(2);
@@ -143,31 +207,39 @@ class PurchaseRequisitionResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('number')
+                TextColumn::make('number')
+                    ->label('Number')
                     ->numeric()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('purchaseType.name')
+
+                TextColumn::make('purchaseType.name')
+                    ->label('Purchase Type')
+                    ->sortable(),
+
+                TextColumn::make('requested_by')
+                    ->description(fn(PurchaseRequisition $record): string => $record->Department->name)
+                    ->searchable(['department.name', 'requested_by']),
+
+                TextColumn::make('status')
                     ->numeric()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('requested_by')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('department.name')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('status')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('approved_at')
+
+                TextColumn::make('approved_at')
                     ->date()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('cancelled_at')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                TextColumn::make('cancelled_at')
                     ->date()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('created_at')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('updated_at')
+
+                TextColumn::make('updated_at')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -176,12 +248,19 @@ class PurchaseRequisitionResource extends Resource
                 //
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
+                ActionGroup::make([
+                    ViewAction::make(),
+                    EditAction::make()
+                        ->color('primary'),
+                    DeleteAction::make(),
+                ])
+                    ->icon('heroicon-o-ellipsis-horizontal-circle')
+                    ->color('info')
+                    ->tooltip('Action'),
             ])
             ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                BulkActionGroup::make([
+                    DeleteBulkAction::make(),
                 ]),
             ]);
     }
