@@ -133,6 +133,9 @@ class PurchaseRequisitionResource extends Resource
                                         } elseif ($state === '1') {
                                             $set('cancelled_at', now());
                                             $set('approved_at', null);
+                                        } else {
+                                            $set('approved_at', null);
+                                            $set('cancelled_at',  null);
                                         }
                                     })
                                     ->columnSpan(fn(Get $get) => in_array($get('status'), ['0', null]) ? 2 : 1)

@@ -50,11 +50,12 @@ class PurchaseOrderResource extends Resource
                         Select::make('purchase_requisition_id')
                             ->label('Purchase Requisition')
                             ->placeholder('Select Purchase Requisition')
-                            ->relationship('purchaseRequisition', 'id')
+                            ->relationship('purchaseRequisition', 'id', fn(Builder $query) => $query->where('status', 2))
                             ->native(false)
                             ->preload()
                             ->columnSpanFull()
-                            ->searchable(['number', 'purchaseType.name', 'requested_by', 'department.name'])
+                            ->noSearchResultsMessage('No Purchase Requisition found.')
+                            ->searchable(['number', 'requested_by'])
                             ->getOptionLabelFromRecordUsing(function (Model $record) {
                                 $number = $record->number;
                                 $type = $record->purchaseType->name;
@@ -205,29 +206,44 @@ class PurchaseOrderResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('purchaseRequisition.id')
-                    ->numeric()
+                Tables\Columns\TextColumn::make('purchaseRequisition.number')
+                    ->label('Purchase Requisition')
                     ->sortable(),
+                Tables\Columns\TextColumn::make('purchaseRequisition.purchaseType.name')
+                    ->label('Purchase Type')
+                    ->badge()
+                    ->color('info'),
+                Tables\Columns\TextColumn::make('purchaseRequisition.requested_by')
+                    ->label('Requestd By')
+                    ->description(fn(PurchaseOrder $record): string => $record->PurchaseRequisition->Department->name),
                 Tables\Columns\TextColumn::make('vendor.name')
+                    ->label('Vendor')
                     ->numeric()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('buyer')
+                    ->label('Buyer')
                     ->searchable(),
                 Tables\Columns\IconColumn::make('is_confirmed')
-                    ->boolean(),
+                    ->boolean()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\IconColumn::make('is_received')
-                    ->boolean(),
+                    ->boolean()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\IconColumn::make('is_closed')
-                    ->boolean(),
+                    ->boolean()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('confirmed_at')
                     ->date()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('received_at')
                     ->date()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('closed_at')
                     ->date()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
