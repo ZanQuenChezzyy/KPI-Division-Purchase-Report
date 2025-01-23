@@ -17,6 +17,18 @@ use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Resources\Resource;
 use Filament\Tables;
+use Filament\Tables\Actions\ActionGroup;
+use Filament\Tables\Actions\DeleteAction;
+use Filament\Tables\Actions\EditAction;
+use Filament\Tables\Actions\ViewAction;
+use Filament\Tables\Columns\IconColumn;
+use Filament\Tables\Columns\Summarizers\Average;
+use Filament\Tables\Columns\Summarizers\Range;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\ToggleColumn;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Filters\TernaryFilter;
+use Filament\Tables\Grouping\Group as GroupingGroup;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -125,7 +137,7 @@ class PurchaseOrderResource extends Resource
                                 Toggle::make('is_closed')
                                     ->label('Order Closed')
                                     ->inline(false)
-                                    ->onColor('danger')
+                                    ->onColor('success')
                                     ->onIcon('heroicon-m-bolt')
                                     ->offIcon('heroicon-m-x-mark')
                                     ->live()
@@ -155,14 +167,16 @@ class PurchaseOrderResource extends Resource
                                 ->dehydratedWhenHidden()
                                 ->hidden(fn(Get $get): bool => !$get('is_received'))
                                 ->columnSpan(fn(Get $get): ?string => $get('is_received') && (!$get('is_confirmed') && !$get('is_closed')) ? 'full' : null)
-                                ->required(fn(Get $get): bool => $get('is_confirmed')),
+                                ->required(fn(Get $get): bool => $get('is_received')),
 
                             DatePicker::make('closed_at')
+                                ->label('Closed At')
+                                ->placeholder('Select Closed Date')
                                 ->native(false)
                                 ->dehydratedWhenHidden()
                                 ->hidden(fn(Get $get): bool => !$get('is_closed'))
                                 ->columnSpan(fn(Get $get): ?string => $get('is_closed') && (!$get('is_confirmed') && !$get('is_received')) ? 'full' : null)
-                                ->required(fn(Get $get): bool => $get('is_confirmed')),
+                                ->required(fn(Get $get): bool => $get('is_closed')),
                         ])
                             ->columns(3)
                             ->columnSpan(2)
@@ -185,14 +199,16 @@ class PurchaseOrderResource extends Resource
                                 ->dehydratedWhenHidden()
                                 ->hidden(fn(Get $get): bool => !$get('is_received'))
                                 ->columnSpan(fn(Get $get): ?string => $get('is_received') && (!$get('is_confirmed') && !$get('is_closed')) ? 'full' : null)
-                                ->required(fn(Get $get): bool => $get('is_confirmed')),
+                                ->required(fn(Get $get): bool => $get('is_received')),
 
                             DatePicker::make('closed_at')
+                                ->label('Closed At')
+                                ->placeholder('Select Closed Date')
                                 ->native(false)
                                 ->dehydratedWhenHidden()
                                 ->hidden(fn(Get $get): bool => !$get('is_closed'))
                                 ->columnSpan(fn(Get $get): ?string => $get('is_closed') && (!$get('is_confirmed') && !$get('is_received')) ? 'full' : null)
-                                ->required(fn(Get $get): bool => !$get('is_confirmed')),
+                                ->required(fn(Get $get): bool => !$get('is_closed')),
                         ])
                             ->columns(2)
                             ->columnSpan(2)
@@ -205,60 +221,194 @@ class PurchaseOrderResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->Groups([
+                GroupingGroup::make('purchaseRequisition.department.name')
+                    ->label('Department Name'),
+                GroupingGroup::make('vendor.name')
+                    ->label('Vendor Name'),
+            ])
+            ->defaultGroup('purchaseRequisition.department.name')
             ->columns([
-                Tables\Columns\TextColumn::make('purchaseRequisition.number')
-                    ->label('Purchase Requisition')
+                TextColumn::make('purchaseRequisition.number')
+                    ->label('Number')
                     ->sortable(),
-                Tables\Columns\TextColumn::make('purchaseRequisition.purchaseType.name')
+
+                TextColumn::make('purchaseRequisition.purchaseType.name')
                     ->label('Purchase Type')
                     ->badge()
                     ->color('info'),
-                Tables\Columns\TextColumn::make('purchaseRequisition.requested_by')
-                    ->label('Requestd By')
+
+                TextColumn::make('purchaseRequisition.requested_by')
+                    ->label('Requested By')
                     ->description(fn(PurchaseOrder $record): string => $record->PurchaseRequisition->Department->name),
-                Tables\Columns\TextColumn::make('vendor.name')
+
+                TextColumn::make('vendor.name')
                     ->label('Vendor')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('buyer')
+                    ->description(fn(PurchaseOrder $record): string => $record->vendor->type),
+
+                TextColumn::make('buyer')
                     ->label('Buyer')
                     ->searchable(),
-                Tables\Columns\IconColumn::make('is_confirmed')
-                    ->boolean()
+
+                TextColumn::make('purchaseRequisition.status')
+                    ->label('Requisition Status')
+                    ->badge()
+                    ->icon(fn(int $state): string => match ($state) {
+                        0 => 'heroicon-o-clock',
+                        1 => 'heroicon-o-x-circle',
+                        2 => 'heroicon-o-check-circle',
+                    })
+                    ->formatStateUsing(fn(int $state): string => match ($state) {
+                        0 => 'Pending',
+                        1 => 'Cancelled',
+                        2 => 'Approved',
+                        default => 'Status Tidak Diketahui',
+                    })
+                    ->color(fn(int $state): string => match ($state) {
+                        0 => 'warning',
+                        1 => 'danger',
+                        2 => 'success',
+                        default => 'gray',
+                    }),
+
+                TextColumn::make('purchaseRequisition.purchaseRequisitionItems.item.name')
+                    ->label('Requisition Items')
+                    ->listWithLineBreaks()
+                    ->bulleted()
+                    ->limit(20)
+                    ->limitList(3)
+                    ->expandableLimitedList(),
+
+                TextColumn::make('purchaseRequisition.purchaseRequisitionItems.total_price')
+                    ->label('Price')
+                    ->wrap()
+                    ->listWithLineBreaks()
+                    ->limit(20)
+                    ->limitList(3)
+                    ->numeric()
+                    ->prefix('Rp ')
+                    ->summarize([
+                        Average::make()
+                            ->label('')
+                            ->prefix('Rp '),
+                    ]),
+
+                ToggleColumn::make('is_confirmed')
+                    ->label('Is Confirmed')
+                    ->onColor('success')
+                    ->onIcon('heroicon-m-bolt')
+                    ->offIcon('heroicon-m-check')
+                    ->afterStateUpdated(function ($record, $state) {
+                        if ($state) {
+                            $record->update(['confirmed_at' => now()]);
+                        } else {
+                            $record->update(['confirmed_at' => null]);
+                        }
+                    })
                     ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\IconColumn::make('is_received')
-                    ->boolean()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\IconColumn::make('is_closed')
-                    ->boolean()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('confirmed_at')
+
+                TextColumn::make('confirmed_at')
+                    ->placeholder('No Data Recorded.')
                     ->date()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('received_at')
+
+                ToggleColumn::make('is_received')
+                    ->label('Is Received')
+                    ->onColor('success')
+                    ->onIcon('heroicon-m-bolt')
+                    ->offIcon('heroicon-m-check')
+                    ->afterStateUpdated(function ($record, $state) {
+                        if ($state) {
+                            $record->update(['received_at' => now()]);
+                        } else {
+                            $record->update(['received_at' => null]);
+                        }
+                    })
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                TextColumn::make('received_at')
+                    ->placeholder('No Data Recorded.')
                     ->date()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('closed_at')
+
+                ToggleColumn::make('is_closed')
+                    ->label('Is Closed')
+                    ->onColor('success')
+                    ->onIcon('heroicon-m-bolt')
+                    ->offIcon('heroicon-m-check')
+                    ->afterStateUpdated(function ($record, $state) {
+                        if ($state) {
+                            $record->update(['closed_at' => now()]);
+                        } else {
+                            $record->update(['closed_at' => null]);
+                        }
+                    })
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                TextColumn::make('closed_at')
+                    ->placeholder('No Data Recorded.')
                     ->date()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('created_at')
+
+                TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('updated_at')
+
+                TextColumn::make('updated_at')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                //
+                SelectFilter::make('purchaseRequisition.purchaseType.name')
+                    ->label('Purchase Type')
+                    ->placeholder('Select Purchase Type')
+                    ->relationship('purchaseRequisition.purchaseType', 'name')
+                    ->native(false)
+                    ->preload()
+                    ->searchable(),
+
+                SelectFilter::make('purchaseRequisition.Department.name')
+                    ->label('Department')
+                    ->placeholder('Select Deparment')
+                    ->relationship('purchaseRequisition.Department', 'name')
+                    ->native(false)
+                    ->preload()
+                    ->searchable(),
+
+                TernaryFilter::make('is_confirmed')
+                    ->placeholder('Select Options')
+                    ->native(false)
+                    ->preload()
+                    ->searchable(),
+
+                TernaryFilter::make('is_received')
+                    ->placeholder('Select Options')
+                    ->native(false)
+                    ->preload()
+                    ->searchable(),
+
+                TernaryFilter::make('is_closed')
+                    ->placeholder('Select Options')
+                    ->native(false)
+                    ->preload()
+                    ->searchable(),
+
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
+                ActionGroup::make([
+                    ViewAction::make(),
+                    EditAction::make()
+                        ->color('info'),
+                    DeleteAction::make(),
+                ])
+                    ->icon('heroicon-o-ellipsis-horizontal-circle')
+                    ->color('info')
+                    ->tooltip('Action'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

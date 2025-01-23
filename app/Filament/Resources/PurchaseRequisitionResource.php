@@ -320,8 +320,7 @@ class PurchaseRequisitionResource extends Resource
                 TextColumn::make('purchaseType.name')
                     ->label('Purchase Type')
                     ->badge()
-                    ->color('info')
-                    ->sortable(),
+                    ->color('info'),
 
                 TextColumn::make('requested_by')
                     ->description(fn(PurchaseRequisition $record): string => $record->Department->name)
