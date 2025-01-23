@@ -19,7 +19,7 @@ return new class extends Migration
             $table->boolean('is_confirmed')->default(false);
             $table->boolean('is_received')->default(false);
             $table->boolean('is_closed')->default(false);
-            $table->date('confirmed at')->nullable();
+            $table->date('confirmed_at')->nullable();
             $table->date('received_at')->nullable();
             $table->date('closed_at')->nullable();
             $table->timestamps();

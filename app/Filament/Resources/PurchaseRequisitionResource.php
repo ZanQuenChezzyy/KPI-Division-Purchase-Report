@@ -144,14 +144,14 @@ class PurchaseRequisitionResource extends Resource
                                     ->placeholder('Select Approved Date')
                                     ->native(false)
                                     ->dehydratedWhenHidden()
-                                    ->hidden(fn(Get $get): bool => $get('status') !== '2' && !$get('approved_at') || $get('status') === '0'),
+                                    ->hidden(fn(Get $get): bool => $get('status') !== '2' && !$get('approved_at') || $get('status') === '0' || $get('status') === null),
 
                                 DatePicker::make('cancelled_at')
                                     ->label('Cancelled At')
                                     ->placeholder('Select Cancelled Date')
                                     ->native(false)
                                     ->dehydratedWhenHidden()
-                                    ->hidden(fn(Get $get): bool => $get('status') !== '1' && !$get('cancelled_at') || $get('status') === '0'),
+                                    ->hidden(fn(Get $get): bool => $get('status') !== '1' && !$get('cancelled_at') || $get('status') === '0' || $get('status') === null),
                             ])->columns(2)
                             ->columnSpan(1),
                         Section::make('Purchase Items')

@@ -6,11 +6,20 @@ use App\Filament\Resources\PurchaseOrderResource\Pages;
 use App\Filament\Resources\PurchaseOrderResource\RelationManagers;
 use App\Models\PurchaseOrder;
 use Filament\Forms;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Grid;
+use Filament\Forms\Components\Group;
+use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class PurchaseOrderResource extends Resource
@@ -36,25 +45,160 @@ class PurchaseOrderResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Select::make('purchase_requisition_id')
-                    ->relationship('purchaseRequisition', 'id')
-                    ->required(),
-                Forms\Components\Select::make('vendor_id')
-                    ->relationship('vendor', 'name')
-                    ->required(),
-                Forms\Components\TextInput::make('buyer')
-                    ->required()
-                    ->maxLength(45),
-                Forms\Components\Toggle::make('is_confirmed')
-                    ->required(),
-                Forms\Components\Toggle::make('is_received')
-                    ->required(),
-                Forms\Components\Toggle::make('is_closed')
-                    ->required(),
-                Forms\Components\DatePicker::make('confirmed at'),
-                Forms\Components\DatePicker::make('received_at'),
-                Forms\Components\DatePicker::make('closed_at'),
-            ]);
+                Section::make('Purchase Information')
+                    ->schema([
+                        Select::make('purchase_requisition_id')
+                            ->label('Purchase Requisition')
+                            ->placeholder('Select Purchase Requisition')
+                            ->relationship('purchaseRequisition', 'id')
+                            ->native(false)
+                            ->preload()
+                            ->columnSpanFull()
+                            ->searchable(['number', 'purchaseType.name', 'requested_by', 'department.name'])
+                            ->getOptionLabelFromRecordUsing(function (Model $record) {
+                                $number = $record->number;
+                                $type = $record->purchaseType->name;
+                                $requstedBy = $record->requested_by;
+                                $department = $record->department->name;
+
+                                return "($number) - $type [$requstedBy, $department]";
+                            })
+                            ->required(),
+
+                        Select::make('vendor_id')
+                            ->label('Vendor')
+                            ->placeholder('Select Vendor')
+                            ->relationship('vendor', 'name')
+                            ->native(false)
+                            ->preload()
+                            ->searchable()
+                            ->getOptionLabelFromRecordUsing(function (Model $record) {
+                                $name = $record->name;
+                                $type = $record->type;
+
+                                return "$name - $type";
+                            })
+                            ->required(),
+
+                        TextInput::make('buyer')
+                            ->label('Buyer')
+                            ->placeholder('Enter Buyer name')
+                            ->minLength(3)
+                            ->maxLength(45)
+                            ->required(),
+                    ])->columns(2)
+                    ->columnSpan(3),
+                Section::make('Order Status')
+                    ->schema([
+                        Group::make()
+                            ->schema([
+                                Toggle::make('is_confirmed')
+                                    ->label('Order Confirmed')
+                                    ->inline(false)
+                                    ->onIcon('heroicon-m-bolt')
+                                    ->offIcon('heroicon-m-check')
+                                    ->live()
+                                    ->afterStateUpdated(function ($state, callable $set) {
+                                        if ($state) {
+                                            $set('confirmed_at', now());
+                                        } else {
+                                            $set('confirmed_at', null);
+                                        }
+                                    }),
+
+                                Toggle::make('is_received')
+                                    ->label('Order Received')
+                                    ->inline(false)
+                                    ->onColor('success')
+                                    ->onIcon('heroicon-m-bolt')
+                                    ->offIcon('heroicon-m-check')
+                                    ->live()
+                                    ->afterStateUpdated(function ($state, callable $set) {
+                                        if ($state) {
+                                            $set('received_at', now());
+                                        } else {
+                                            $set('received_at', null);
+                                        }
+                                    }),
+
+                                Toggle::make('is_closed')
+                                    ->label('Order Closed')
+                                    ->inline(false)
+                                    ->onColor('danger')
+                                    ->onIcon('heroicon-m-bolt')
+                                    ->offIcon('heroicon-m-x-mark')
+                                    ->live()
+                                    ->afterStateUpdated(function ($state, callable $set) {
+                                        if ($state) {
+                                            $set('closed_at', now());
+                                        } else {
+                                            $set('closed_at', null);
+                                        }
+                                    }),
+                            ])->columns(3)
+                            ->columnSpan(2),
+                        Group::make([
+                            DatePicker::make('confirmed_at')
+                                ->label('Confirmed At')
+                                ->placeholder('Select Confirmed Date')
+                                ->native(false)
+                                ->dehydratedWhenHidden()
+                                ->hidden(fn(Get $get): bool => !$get('is_confirmed'))
+                                ->columnSpan(fn(Get $get): ?string => $get('is_confirmed') && (!$get('is_received') && !$get('is_closed')) ? 'full' : null)
+                                ->required(fn(Get $get): bool => $get('is_confirmed')),
+
+                            DatePicker::make('received_at')
+                                ->label('Received At')
+                                ->placeholder('Select Received Date')
+                                ->native(false)
+                                ->dehydratedWhenHidden()
+                                ->hidden(fn(Get $get): bool => !$get('is_received'))
+                                ->columnSpan(fn(Get $get): ?string => $get('is_received') && (!$get('is_confirmed') && !$get('is_closed')) ? 'full' : null)
+                                ->required(fn(Get $get): bool => $get('is_confirmed')),
+
+                            DatePicker::make('closed_at')
+                                ->native(false)
+                                ->dehydratedWhenHidden()
+                                ->hidden(fn(Get $get): bool => !$get('is_closed'))
+                                ->columnSpan(fn(Get $get): ?string => $get('is_closed') && (!$get('is_confirmed') && !$get('is_received')) ? 'full' : null)
+                                ->required(fn(Get $get): bool => $get('is_confirmed')),
+                        ])
+                            ->columns(3)
+                            ->columnSpan(2)
+                            ->hidden(fn(Get $get) => $get('is_confirmed') + $get('is_received') + $get('is_closed') === 2),
+
+                        Group::make([
+                            DatePicker::make('confirmed_at')
+                                ->label('Confirmed At')
+                                ->placeholder('Select Confirmed Date')
+                                ->native(false)
+                                ->dehydratedWhenHidden()
+                                ->hidden(fn(Get $get): bool => !$get('is_confirmed'))
+                                ->columnSpan(fn(Get $get): ?string => $get('is_confirmed') && (!$get('is_received') && !$get('is_closed')) ? 'full' : null)
+                                ->required(fn(Get $get): bool => $get('is_confirmed')),
+
+                            DatePicker::make('received_at')
+                                ->label('Received At')
+                                ->placeholder('Select Received Date')
+                                ->native(false)
+                                ->dehydratedWhenHidden()
+                                ->hidden(fn(Get $get): bool => !$get('is_received'))
+                                ->columnSpan(fn(Get $get): ?string => $get('is_received') && (!$get('is_confirmed') && !$get('is_closed')) ? 'full' : null)
+                                ->required(fn(Get $get): bool => $get('is_confirmed')),
+
+                            DatePicker::make('closed_at')
+                                ->native(false)
+                                ->dehydratedWhenHidden()
+                                ->hidden(fn(Get $get): bool => !$get('is_closed'))
+                                ->columnSpan(fn(Get $get): ?string => $get('is_closed') && (!$get('is_confirmed') && !$get('is_received')) ? 'full' : null)
+                                ->required(fn(Get $get): bool => !$get('is_confirmed')),
+                        ])
+                            ->columns(2)
+                            ->columnSpan(2)
+                            ->hidden(fn(Get $get) => $get('is_confirmed') + $get('is_received') + $get('is_closed') !== 2),
+                    ])->columns(2)
+                    ->columnSpan(2),
+            ])->columns(5);
     }
 
     public static function table(Table $table): Table
@@ -75,7 +219,7 @@ class PurchaseOrderResource extends Resource
                     ->boolean(),
                 Tables\Columns\IconColumn::make('is_closed')
                     ->boolean(),
-                Tables\Columns\TextColumn::make('confirmed at')
+                Tables\Columns\TextColumn::make('confirmed_at')
                     ->date()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('received_at')
