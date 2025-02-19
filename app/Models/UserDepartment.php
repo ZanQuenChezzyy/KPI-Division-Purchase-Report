@@ -30,8 +30,8 @@ class UserDepartment extends Model
     }
 
     public function purchaseOrders(): \Illuminate\Database\Eloquent\Relations\HasMany
-{
-    return $this->hasMany(\App\Models\PurchaseOrder::class);
-}
+    {
+        return $this->hasMany(\App\Models\PurchaseOrder::class);
+    }
 
 }
