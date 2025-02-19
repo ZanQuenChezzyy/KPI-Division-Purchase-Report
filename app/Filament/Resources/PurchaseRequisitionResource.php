@@ -31,6 +31,7 @@ use Filament\Tables\Actions\EditAction;
 use Filament\Tables\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Grouping\Group as GroupingGroup;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
@@ -312,6 +313,18 @@ class PurchaseRequisitionResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->groups([
+                GroupingGroup::make('Department.name')
+                    ->label('Department'),
+                GroupingGroup::make('status')
+                    ->getTitleFromRecordUsing(fn(PurchaseRequisition $record): string => match ($record->status) {
+                        1 => 'Pending',
+                        2 => 'Approved',
+                        3 => 'Cancelled',
+                        default => 'Unknown', // Optional fallback for unexpected values
+                    }),
+            ])
+            ->defaultGroup('Department.name')
             ->columns([
                 TextColumn::make('number')
                     ->label('Number')
