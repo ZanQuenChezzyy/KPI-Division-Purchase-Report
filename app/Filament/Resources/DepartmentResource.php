@@ -5,17 +5,17 @@ namespace App\Filament\Resources;
 use App\Filament\Clusters\ItemReference;
 use App\Filament\Resources\DepartmentResource\Pages;
 use App\Filament\Resources\DepartmentResource\RelationManagers;
+use App\Filament\Resources\DepartmentResource\RelationManagers\UserDepartmentsRelationManager;
 use App\Models\Department;
 use Filament\Forms;
+use Filament\Forms\Components\Section;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Pages\SubNavigationPosition;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Actions\ActionGroup;
-use Filament\Tables\Actions\BulkActionGroup;
 use Filament\Tables\Actions\DeleteAction;
-use Filament\Tables\Actions\DeleteBulkAction;
 use Filament\Tables\Actions\EditAction;
 use Filament\Tables\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
@@ -45,17 +45,20 @@ class DepartmentResource extends Resource
     protected static ?string $navigationBadgeTooltip = 'Total Department';
     protected static ?string $slug = 'department';
 
+
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                TextInput::make('name')
-                    ->label('Department Name')
-                    ->placeholder('Enter Department Name')
-                    ->minLength(3)
-                    ->maxLength(45)
-                    ->columnSpanFull()
-                    ->required(),
+                Section::make([
+                    TextInput::make('name')
+                        ->label('Department Name')
+                        ->placeholder('Enter Department Name')
+                        ->minLength(3)
+                        ->maxLength(45)
+                        ->columnSpanFull()
+                        ->required(),
+                ])
             ]);
     }
 
@@ -83,16 +86,26 @@ class DepartmentResource extends Resource
                     ->tooltip('Action')
             ])
             ->bulkActions([
-                BulkActionGroup::make([
-                    DeleteBulkAction::make(),
+                Tables\Actions\BulkActionGroup::make([
+                    Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            UserDepartmentsRelationManager::class,
+        ];
     }
 
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ManageDepartments::route('/'),
+            'index' => Pages\ListDepartments::route('/'),
+            'create' => Pages\CreateDepartment::route('/create'),
+            'view' => Pages\ViewDepartment::route('/{record}'),
+            'edit' => Pages\EditDepartment::route('/{record}/edit'),
         ];
     }
 }

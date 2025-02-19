@@ -87,8 +87,18 @@ class UserResource extends Resource
                                     ->relationship('roles', 'name')
                                     ->native(false)
                                     ->preload()
-                                    ->columnSpanFull()
                                     ->searchable()
+                                    ->columnSpanFull()
+                                    ->required(),
+
+                                Select::make('department')
+                                    ->label('Department')
+                                    ->placeholder('Select Department')
+                                    ->relationship('departments', 'name')
+                                    ->native(false)
+                                    ->preload()
+                                    ->searchable()
+                                    ->columnSpanFull()
                                     ->required(),
                             ]),
                     ])
@@ -154,13 +164,13 @@ class UserResource extends Resource
                             ->visible(fn(Get $get): bool => filled($get('password')))
                             ->dehydrated(false),
                     ])->columnSpan([
-                        'default' => fn(?User $record) => $record === null ? 3 : 3,
-                        'sm' => fn(?User $record) => $record === null ? 2 : 3,
-                        'md' => fn(?User $record) => $record === null ? 3 : 3,
-                        'lg' => fn(?User $record) => $record === null ? 4 : 4,
-                        'xl' => fn(?User $record) => $record === null ? 3 : 2,
-                        '2xl' => fn(?User $record) => $record === null ? 3 : 2,
-                    ])
+                            'default' => fn(?User $record) => $record === null ? 3 : 3,
+                            'sm' => fn(?User $record) => $record === null ? 2 : 3,
+                            'md' => fn(?User $record) => $record === null ? 3 : 3,
+                            'lg' => fn(?User $record) => $record === null ? 4 : 4,
+                            'xl' => fn(?User $record) => $record === null ? 3 : 2,
+                            '2xl' => fn(?User $record) => $record === null ? 3 : 2,
+                        ])
                     ->columns(2),
 
                 Section::make()

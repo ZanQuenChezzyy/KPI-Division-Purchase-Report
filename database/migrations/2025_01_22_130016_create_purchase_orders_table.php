@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     /**
      * Run the migrations.
      */
@@ -15,7 +14,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('purchase_requisition_id')->constrained('purchase_requisitions')->cascadeOnDelete();
             $table->foreignId('vendor_id')->constrained('vendors')->cascadeOnDelete();
-            $table->string('buyer', 45);
+            $table->foreignId('buyer')->constrained('user_departments')->cascadeOnDelete();
             $table->boolean('is_confirmed')->default(false);
             $table->boolean('is_received')->default(false);
             $table->boolean('is_closed')->default(false);

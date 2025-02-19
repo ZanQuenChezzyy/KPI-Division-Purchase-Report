@@ -16,6 +16,7 @@ use Filament\Forms\Components\Toggle;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Resources\Resource;
+use Filament\Support\Enums\MaxWidth;
 use Filament\Tables;
 use Filament\Tables\Actions\ActionGroup;
 use Filament\Tables\Actions\DeleteAction;
@@ -67,14 +68,14 @@ class PurchaseOrderResource extends Resource
                             ->preload()
                             ->columnSpanFull()
                             ->noSearchResultsMessage('No Purchase Requisition found.')
-                            ->searchable(['number', 'requested_by'])
+                            ->searchable(['number', 'userDepartment.user.name']) // Mencari berdasarkan nama user
                             ->getOptionLabelFromRecordUsing(function (Model $record) {
                                 $number = $record->number;
                                 $type = $record->purchaseType->name;
-                                $requstedBy = $record->requested_by;
+                                $requestedBy = $record->userDepartment->user->name; // Ambil nama user dari relasi
                                 $department = $record->department->name;
 
-                                return "($number) - $type [$requstedBy, $department]";
+                                return "($number) - $type [$requestedBy, $department]";
                             })
                             ->required(),
 
@@ -93,11 +94,19 @@ class PurchaseOrderResource extends Resource
                             })
                             ->required(),
 
-                        TextInput::make('buyer')
+                        Select::make('buyer')
                             ->label('Buyer')
-                            ->placeholder('Enter Buyer name')
-                            ->minLength(3)
-                            ->maxLength(45)
+                            ->placeholder('Enter Buyer Name')
+                            ->relationship('userDepartment.user', 'name')
+                            ->native(false)
+                            ->preload()
+                            ->searchable()
+                            ->getOptionLabelFromRecordUsing(function (Model $record) {
+                                $name = $record->name;
+                                $department = optional($record->userDepartments->first()->department)->name ?? 'No Department';
+
+                                return "$name - $department";
+                            })
                             ->required(),
                     ])->columns(2)
                     ->columnSpan(3),
@@ -208,7 +217,7 @@ class PurchaseOrderResource extends Resource
                                 ->dehydratedWhenHidden()
                                 ->hidden(fn(Get $get): bool => !$get('is_closed'))
                                 ->columnSpan(fn(Get $get): ?string => $get('is_closed') && (!$get('is_confirmed') && !$get('is_received')) ? 'full' : null)
-                                ->required(fn(Get $get): bool => !$get('is_closed')),
+                                ->required(fn(Get $get): bool => $get('is_closed')),
                         ])
                             ->columns(2)
                             ->columnSpan(2)
@@ -238,7 +247,7 @@ class PurchaseOrderResource extends Resource
                     ->badge()
                     ->color('info'),
 
-                TextColumn::make('purchaseRequisition.requested_by')
+                TextColumn::make('purchaseRequisition.userDepartment.user.name')
                     ->label('Requested By')
                     ->description(fn(PurchaseOrder $record): string => $record->PurchaseRequisition->Department->name),
 
@@ -246,7 +255,7 @@ class PurchaseOrderResource extends Resource
                     ->label('Vendor')
                     ->description(fn(PurchaseOrder $record): string => $record->vendor->type),
 
-                TextColumn::make('buyer')
+                TextColumn::make('userDepartment.user.name')
                     ->label('Buyer')
                     ->searchable(),
 
@@ -364,6 +373,22 @@ class PurchaseOrderResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                SelectFilter::make('purchaseRequisition.userDepartment.user.name')
+                    ->label('Requested By')
+                    ->placeholder('Select Requester')
+                    ->relationship('purchaseRequisition.userDepartment.user', 'name')
+                    ->native(false)
+                    ->preload()
+                    ->searchable(),
+
+                SelectFilter::make('userDepartment.user.name')
+                    ->label('Buyer')
+                    ->placeholder('Select Buyer')
+                    ->relationship('userDepartment.user', 'name')
+                    ->native(false)
+                    ->preload()
+                    ->searchable(),
+
                 SelectFilter::make('purchaseRequisition.purchaseType.name')
                     ->label('Purchase Type')
                     ->placeholder('Select Purchase Type')
@@ -398,7 +423,8 @@ class PurchaseOrderResource extends Resource
                     ->preload()
                     ->searchable(),
 
-            ])
+            ])->filtersFormColumns(3)
+            ->filtersFormWidth(MaxWidth::FourExtraLarge)
             ->actions([
                 ActionGroup::make([
                     ViewAction::make(),

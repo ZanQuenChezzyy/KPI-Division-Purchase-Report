@@ -30,4 +30,9 @@ class PurchaseOrder extends Model
     {
         return $this->belongsTo(\App\Models\PurchaseRequisition::class, 'purchase_requisition_id', 'id');
     }
+
+    public function UserDepartment(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(\App\Models\UserDepartment::class, 'buyer', 'id');
+    }
 }

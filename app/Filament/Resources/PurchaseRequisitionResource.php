@@ -21,6 +21,7 @@ use Filament\Infolists\Components\Section as InfoSection;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
+use Filament\Support\Enums\MaxWidth;
 use Filament\Support\RawJs;
 use Filament\Tables;
 use Filament\Tables\Actions\ActionGroup;
@@ -92,11 +93,24 @@ class PurchaseRequisitionResource extends Resource
                             ->columnSpan(1),
                         Section::make('Requester Details')
                             ->schema([
-                                TextInput::make('requested_by')
+                                Select::make('requested_by')
                                     ->label('Requester By')
-                                    ->placeholder('Enter Requester Full Name')
-                                    ->minLength(3)
-                                    ->maxLength(45)
+                                    ->placeholder('Select Requester')
+                                    ->relationship('UserDepartment', 'id', function ($query) {
+                                        return $query->with('User');
+                                    })
+                                    ->getOptionLabelFromRecordUsing(fn($record) => $record->User->name)
+                                    ->native(false)
+                                    ->preload()
+                                    ->searchable()
+                                    ->live()
+                                    ->afterStateUpdated(function (callable $set, $state) {
+                                        // Ambil department_id dari user_department yang dipilih
+                                        $departmentId = \App\Models\UserDepartment::where('id', $state)->value('department_id');
+
+                                        // Set department_id secara otomatis
+                                        $set('department_id', $departmentId);
+                                    })
                                     ->required(),
                                 Select::make('department_id')
                                     ->label('Department')
@@ -104,7 +118,10 @@ class PurchaseRequisitionResource extends Resource
                                     ->relationship('department', 'name')
                                     ->native(false)
                                     ->preload()
+                                    ->hint('Automatic')
                                     ->searchable()
+                                    ->disabled()
+                                    ->dehydrated()
                                     ->required(),
                             ])->columns(2)
                             ->columnSpan(1),
@@ -136,7 +153,7 @@ class PurchaseRequisitionResource extends Resource
                                             $set('approved_at', null);
                                         } else {
                                             $set('approved_at', null);
-                                            $set('cancelled_at',  null);
+                                            $set('cancelled_at', null);
                                         }
                                     })
                                     ->columnSpan(fn(Get $get) => in_array($get('status'), ['0', null]) ? 2 : 1)
@@ -168,6 +185,57 @@ class PurchaseRequisitionResource extends Resource
                                             ->label('Item')
                                             ->placeholder('Select Item')
                                             ->relationship('Item', 'name')
+                                            ->createOptionForm([
+                                                TextInput::make('name')
+                                                    ->label('Item Name')
+                                                    ->placeholder('Enter Item Name')
+                                                    ->minLength(3)
+                                                    ->maxLength(100)
+                                                    ->columnSpanFull()
+                                                    ->required(),
+
+                                                Group::make()
+                                                    ->schema([
+                                                        TextInput::make('sku')
+                                                            ->label('Stock Keeping Unit (SKU)')
+                                                            ->placeholder('Enter Stock Keeping Unit')
+                                                            ->minLength(3)
+                                                            ->maxLength(50)
+                                                            ->columnSpan(2)
+                                                            ->required(),
+
+                                                        TextInput::make('unit_price')
+                                                            ->label('Price / unit')
+                                                            ->placeholder('Enter Price')
+                                                            ->minValue(1000)
+                                                            ->minLength(4)
+                                                            ->maxLength(20)
+                                                            ->columnSpan(2)
+                                                            ->mask(RawJs::make('$money($input)'))
+                                                            ->stripCharacters(',')
+                                                            ->prefix('Rp')
+                                                            ->suffix('.00')
+                                                            ->numeric()
+                                                            ->required(),
+
+                                                        TextInput::make('unit')
+                                                            ->label('Unit')
+                                                            ->placeholder('Enter Unit')
+                                                            ->helperText('E.g., Pcs, Kg, Liter')
+                                                            ->minLength(1)
+                                                            ->maxLength(20)
+                                                            ->required(),
+                                                    ])->columns(5)
+                                                    ->columnSpanFull(),
+
+                                                Textarea::make('description')
+                                                    ->label('Description')
+                                                    ->placeholder('Enter Description')
+                                                    ->minLength(10)
+                                                    ->rows(3)
+                                                    ->autosize()
+                                                    ->columnSpanFull(),
+                                            ])
                                             ->native(false)
                                             ->preload()
                                             ->searchable()
@@ -181,6 +249,7 @@ class PurchaseRequisitionResource extends Resource
                                         TextInput::make('unit_price')
                                             ->label('Unit Price')
                                             ->hidden()
+                                            ->dehydratedWhenHidden()
                                             ->numeric(),
                                         TextInput::make('qty')
                                             ->label('Quantity')
@@ -278,7 +347,7 @@ class PurchaseRequisitionResource extends Resource
                             ->columnSpan(4),
                         Fieldset::make('Requester Details')
                             ->schema([
-                                TextEntry::make('requested_by')
+                                TextEntry::make('UserDepartment.User.name')
                                     ->label('Requested By'),
                                 TextEntry::make('department.name')
                                     ->label('Department')
@@ -335,7 +404,8 @@ class PurchaseRequisitionResource extends Resource
                     ->badge()
                     ->color('info'),
 
-                TextColumn::make('requested_by')
+                TextColumn::make('UserDepartment.User.name')
+                    ->label('Requested By')
                     ->description(fn(PurchaseRequisition $record): string => $record->Department->name)
                     ->searchable(['department.name', 'requested_by']),
 
@@ -400,7 +470,15 @@ class PurchaseRequisitionResource extends Resource
                     ->native(false)
                     ->preload()
                     ->searchable(),
-            ])
+                SelectFilter::make('user_id')
+                    ->label('Requester')
+                    ->placeholder('Select Requester')
+                    ->relationship('UserDepartment.User', 'name')
+                    ->native(false)
+                    ->preload()
+                    ->searchable(),
+            ])->filtersFormColumns(3)
+            ->filtersFormWidth(MaxWidth::FourExtraLarge)
             ->actions([
                 ActionGroup::make([
                     ViewAction::make(),

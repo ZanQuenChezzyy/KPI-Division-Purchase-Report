@@ -80,7 +80,7 @@ class ItemResource extends Resource
                             ->mask(RawJs::make('$money($input)'))
                             ->stripCharacters(',')
                             ->prefix('Rp')
-                            ->suffix('.00-')
+                            ->suffix('.00')
                             ->numeric()
                             ->required(),
 

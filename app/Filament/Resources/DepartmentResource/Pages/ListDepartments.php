@@ -4,9 +4,9 @@ namespace App\Filament\Resources\DepartmentResource\Pages;
 
 use App\Filament\Resources\DepartmentResource;
 use Filament\Actions;
-use Filament\Resources\Pages\ManageRecords;
+use Filament\Resources\Pages\ListRecords;
 
-class ManageDepartments extends ManageRecords
+class ListDepartments extends ListRecords
 {
     protected static string $resource = DepartmentResource::class;
 
@@ -15,7 +15,7 @@ class ManageDepartments extends ManageRecords
         return [
             Actions\CreateAction::make()
                 ->label('Create Department')
-                ->icon('heroicon-m-plus-circle'),
+                ->icon('heroicon-s-plus-circle'),
         ];
     }
 }

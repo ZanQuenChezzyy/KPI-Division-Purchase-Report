@@ -40,7 +40,6 @@ class PurchaseRequisition extends Model
         return $this->hasMany(\App\Models\PurchaseOrder::class);
     }
 
-
     public function purchaseRequisitionItems(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(\App\Models\PurchaseRequisitionItem::class);
