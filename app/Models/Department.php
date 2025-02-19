@@ -17,4 +17,10 @@ class Department extends Model
     {
         return $this->hasMany(\App\Models\PurchaseRequisition::class);
     }
+
+    public function userDepartments(): \Illuminate\Database\Eloquent\Relations\HasMany
+{
+    return $this->hasMany(\App\Models\UserDepartment::class);
+}
+
 }

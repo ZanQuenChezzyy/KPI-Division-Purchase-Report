@@ -54,4 +54,9 @@ class User extends Authenticatable implements HasAvatar
     {
         return $this->avatar_url ? Storage::url($this->avatar_url) : null;
     }
+
+    public function userDepartments(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(\App\Models\UserDepartment::class);
+    }
 }
