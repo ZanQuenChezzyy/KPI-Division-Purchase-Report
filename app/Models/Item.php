@@ -21,4 +21,10 @@ class Item extends Model
     {
         return $this->hasMany(\App\Models\PurchaseRequisitionItem::class);
     }
+
+    public function purchaseOrderLines(): \Illuminate\Database\Eloquent\Relations\HasMany
+{
+    return $this->hasMany(\App\Models\PurchaseOrderLine::class);
+}
+
 }

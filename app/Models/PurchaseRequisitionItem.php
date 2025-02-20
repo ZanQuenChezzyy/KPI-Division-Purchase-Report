@@ -26,4 +26,10 @@ class PurchaseRequisitionItem extends Model
     {
         return $this->belongsTo(\App\Models\PurchaseRequisition::class, 'purchase_requisition_id', 'id');
     }
+
+    public function purchaseOrderLines(): \Illuminate\Database\Eloquent\Relations\HasMany
+{
+    return $this->hasMany(\App\Models\PurchaseOrderLine::class);
+}
+
 }

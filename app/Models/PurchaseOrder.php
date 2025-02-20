@@ -35,4 +35,10 @@ class PurchaseOrder extends Model
     {
         return $this->belongsTo(\App\Models\UserDepartment::class, 'buyer', 'id');
     }
+
+    public function purchaseOrderLines(): \Illuminate\Database\Eloquent\Relations\HasMany
+{
+    return $this->hasMany(\App\Models\PurchaseOrderLine::class);
+}
+
 }
