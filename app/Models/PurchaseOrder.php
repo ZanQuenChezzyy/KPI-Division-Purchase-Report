@@ -21,6 +21,18 @@ class PurchaseOrder extends Model
         'closed_at',
     ];
 
+    protected static function booted()
+    {
+        static::updated(function ($purchaseOrder) {
+            // Logika ketika is_received berubah
+            if ($purchaseOrder->isDirty('is_received')) {
+                // Tambahkan logika lain jika perlu
+                // Contoh: Logging atau trigger action
+                logger("Purchase Order {$purchaseOrder->id} status updated to: " . ($purchaseOrder->is_received ? 'Received' : 'Not Received'));
+            }
+        });
+    }
+
     public function Vendor(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(\App\Models\Vendor::class, 'vendor_id', 'id');
@@ -40,5 +52,4 @@ class PurchaseOrder extends Model
     {
         return $this->hasMany(\App\Models\PurchaseOrderLine::class);
     }
-
 }

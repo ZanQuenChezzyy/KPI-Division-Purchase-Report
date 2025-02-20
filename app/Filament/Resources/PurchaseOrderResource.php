@@ -16,6 +16,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
+use Filament\Forms\Set;
 use Filament\Resources\Resource;
 use Filament\Support\Enums\MaxWidth;
 use Filament\Tables;
@@ -127,7 +128,8 @@ class PurchaseOrderResource extends Resource
                                         } else {
                                             $set('confirmed_at', null);
                                         }
-                                    }),
+                                    })
+                                    ->required(),
 
                                 Toggle::make('is_received')
                                     ->label('Order Received')
@@ -136,8 +138,7 @@ class PurchaseOrderResource extends Resource
                                     ->onIcon('heroicon-m-bolt')
                                     ->offIcon('heroicon-m-check')
                                     ->live()
-                                    ->accepted(fn($record) => $record->is_received)
-                                    ->afterStateUpdated(function ($state, callable $set) {
+                                    ->afterStateUpdated(function ($state, Set $set, Get $get) {
                                         if ($state) {
                                             $set('received_at', now());
                                         } else {
@@ -291,7 +292,7 @@ class PurchaseOrderResource extends Resource
                     ->expandableLimitedList(),
 
                 TextColumn::make('purchaseRequisition.purchaseRequisitionItems.total_price')
-                    ->label('Price')
+                    ->label('Total Price')
                     ->wrap()
                     ->listWithLineBreaks()
                     ->limit(20)
