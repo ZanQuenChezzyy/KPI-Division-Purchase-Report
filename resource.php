@@ -82,7 +82,7 @@ if ($response === 'y') {
 
         $excludedIndexes = array_map('trim', explode(',', $excludedInput));
         foreach ($excludedIndexes as $index) {
-            $index = (int)$index - 1; // Konversi ke indeks array
+            $index = (int) $index - 1; // Konversi ke indeks array
             if (isset($modelsToProcess[$index])) {
                 $excludedModels[] = $modelsToProcess[$index];
                 unset($modelsToProcess[$index]);
@@ -130,7 +130,7 @@ foreach ($modelsToProcess as $model) {
 
     if (is_resource($process)) {
         // Kirimkan input otomatis (angka 1 diikuti dengan newline)
-        fwrite($pipes[0], "1\n");
+        fwrite($pipes[0], "2\n");
         fclose($pipes[0]);
 
         // Ambil output dari proses
