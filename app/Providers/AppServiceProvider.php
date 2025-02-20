@@ -7,7 +7,9 @@ use App\Filament\Pages\Dashboard;
 use App\Filament\Resources\PermissionResource;
 use App\Filament\Resources\RoleResource;
 use App\Filament\Resources\UserResource;
+use App\Models\PurchaseOrder;
 use App\Models\PurchaseRequisition;
+use App\Observers\PurchaseOrderObserver;
 use App\Observers\PurchaseRequisitionObserver;
 use Filament\Support\Facades\FilamentView;
 use Filament\View\PanelsRenderHook;
@@ -58,5 +60,6 @@ class AppServiceProvider extends ServiceProvider
 
         // Observers
         PurchaseRequisition::observe(PurchaseRequisitionObserver::class);
+        PurchaseOrder::observe(PurchaseOrderObserver::class);
     }
 }

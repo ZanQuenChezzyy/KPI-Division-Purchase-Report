@@ -15,7 +15,6 @@ class PurchaseOrderLine extends Model
         'item_id',
         'qty',
         'unit_price',
-        'tax',
         'total_price',
         'received_qty',
         'status',

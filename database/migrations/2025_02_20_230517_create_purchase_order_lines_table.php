@@ -17,7 +17,6 @@ return new class extends Migration {
             $table->foreignId('item_id')->constrained('items')->cascadeOnDelete();
             $table->unsignedSmallInteger('qty')->length(5);
             $table->unsignedBigInteger('unit_price');
-            $table->unsignedBigInteger('tax')->nullable()->default(0);
             $table->unsignedBigInteger('total_price')->nullable();
             $table->unsignedSmallInteger('received_qty')->length(5)->default(0);
             $table->unsignedTinyInteger('status')->default(0)->length(1);

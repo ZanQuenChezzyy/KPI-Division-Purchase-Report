@@ -6,6 +6,9 @@ use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
+use Filament\Tables\Columns\SelectColumn;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\TextInputColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
@@ -18,12 +21,6 @@ class PurchaseOrderLinesRelationManager extends RelationManager
     {
         return $form
             ->schema([
-                Forms\Components\Select::make('purchase_order_id')
-                    ->relationship('purchaseOrder', 'id')
-                    ->required(),
-                Forms\Components\Select::make('purchase_requisition_item_id')
-                    ->relationship('purchaseRequisitionItem', 'id')
-                    ->required(),
                 Forms\Components\Select::make('item_id')
                     ->relationship('item', 'name')
                     ->required(),
@@ -56,38 +53,67 @@ class PurchaseOrderLinesRelationManager extends RelationManager
         return $table
             ->recordTitleAttribute('item_id')
             ->columns([
-                Tables\Columns\TextColumn::make('purchaseOrder.id')
+                TextColumn::make('item.name')
                     ->numeric()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('purchaseRequisitionItem.id')
+                TextColumn::make('qty')
+                    ->label('Qty')
+                    ->prefix('x ')
                     ->numeric()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('item.name')
+                TextColumn::make('unit_price')
                     ->numeric()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('qty')
+                TextColumn::make('total_price')
                     ->numeric()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('unit_price')
-                    ->numeric()
+                TextInputColumn::make('received_qty')
+                    ->label('Received Qty')
+                    ->width('1%')
+                    ->rules(fn($record) => ['required', 'min:0', 'numeric', 'max:' . $record->qty . ''])
+                    ->type('number')
+                    ->afterStateUpdated(function ($state, $record) {
+                        // Update status PurchaseOrderLine
+                        $newStatus = $state >= $record->qty ? 2 : 1; // 2 = Received, 1 = Partial Received
+                        $record->update(['status' => $newStatus]);
+
+                        // Cek semua PurchaseOrderLine dalam PurchaseOrder
+                        $allLinesReceived = $record->PurchaseOrder->purchaseOrderLines->every(function ($line) {
+                            return $line->status == 2; // Semua harus berstatus 'Received'
+                        });
+
+                        // Update PurchaseOrder berdasarkan hasil pengecekan
+                        if ($allLinesReceived) {
+                            $record->PurchaseOrder->update([
+                                'is_received' => true,
+                                'received_at' => now(),
+                            ]);
+                        } else {
+                            $record->PurchaseOrder->update([
+                                'is_received' => false,
+                                'received_at' => null,
+                            ]);
+                        }
+                    })
                     ->sortable(),
-                Tables\Columns\TextColumn::make('tax')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('total_price')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('received_qty')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('status')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('created_at')
+                TextColumn::make('status')
+                    ->label('Status')
+                    ->badge()
+                    ->color(fn($state): string => match ($state) {
+                        0 => 'danger',
+                        1 => 'warning',
+                        2 => 'success',
+                    })
+                    ->formatStateUsing(fn($state): string => match ($state) {
+                        0 => 'Pending',
+                        1 => 'Partial Received',
+                        2 => 'Received',
+                    }),
+                TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('updated_at')
+                TextColumn::make('updated_at')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -96,11 +122,14 @@ class PurchaseOrderLinesRelationManager extends RelationManager
                 //
             ])
             ->headerActions([
-                Tables\Actions\CreateAction::make(),
+                Tables\Actions\CreateAction::make()
+                    ->hidden(),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->hidden(),
+                Tables\Actions\DeleteAction::make()
+                    ->hidden(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

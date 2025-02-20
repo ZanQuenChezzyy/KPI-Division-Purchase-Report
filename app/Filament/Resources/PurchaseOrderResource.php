@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\PurchaseOrderResource\Pages;
 use App\Filament\Resources\PurchaseOrderResource\RelationManagers;
+use App\Filament\Resources\PurchaseOrderResource\RelationManagers\PurchaseOrderLinesRelationManager;
 use App\Models\PurchaseOrder;
 use Filament\Forms;
 use Filament\Forms\Components\DatePicker;
@@ -135,6 +136,7 @@ class PurchaseOrderResource extends Resource
                                     ->onIcon('heroicon-m-bolt')
                                     ->offIcon('heroicon-m-check')
                                     ->live()
+                                    ->accepted(fn($record) => $record->is_received)
                                     ->afterStateUpdated(function ($state, callable $set) {
                                         if ($state) {
                                             $set('received_at', now());
@@ -446,7 +448,7 @@ class PurchaseOrderResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            PurchaseOrderLinesRelationManager::class,
         ];
     }
 
