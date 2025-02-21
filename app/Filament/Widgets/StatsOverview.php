@@ -12,40 +12,37 @@ class StatsOverview extends BaseWidget
 {
     protected function getStats(): array
     {
-        $totalIDR = PurchaseOrder::join('purchase_requisition_items', 'purchase_orders.purchase_requisition_id', '=', 'purchase_requisition_items.purchase_requisition_id')
-            ->sum('purchase_requisition_items.total_price');
+        // Hitung Total IDR dari purchase_order_lines
+        $totalIDR = PurchaseOrder::join('purchase_order_lines', 'purchase_orders.id', '=', 'purchase_order_lines.purchase_order_id')
+            ->sum('purchase_order_lines.total_price');
 
+        // Konversi ke USD menggunakan ExchangeRateService
         $rate = ExchangeRateService::getRate('IDR', 'USD');
         $totalUSD = $rate ? $totalIDR * $rate : null;
 
         return [
+            // Total Purchase Requisitions
             Stat::make('Total Purchase Requisitions', PurchaseRequisition::count() . ' Requisitions')
                 ->description(PurchaseRequisition::whereNotNull('approved_at')->count() . ' Purchase Requisitions has been Approved')
                 ->descriptionIcon('heroicon-o-clipboard-document-check')
                 ->chart($this->getMonthlyData(PurchaseRequisition::class))
                 ->color('primary'),
 
+            // Total Purchase Orders
             Stat::make('Total Purchase Orders', PurchaseOrder::count() . ' Order')
                 ->description(PurchaseOrder::whereNotNull('confirmed_at')->count() . ' Purchase Order has been confirmed')
                 ->descriptionIcon('heroicon-o-clipboard-document-list')
                 ->chart($this->getMonthlyData(PurchaseOrder::class))
                 ->color('info'),
 
-            Stat::make('Purchase Order Expenses (IDR)', $this->formatRupiahShort(
-                PurchaseOrder::join('purchase_requisition_items', 'purchase_orders.purchase_requisition_id', '=', 'purchase_requisition_items.purchase_requisition_id')
-                    ->sum('purchase_requisition_items.total_price')
-            ))
-                ->description('Total Amount = Rp' . number_format(
-                    PurchaseOrder::join('purchase_requisition_items', 'purchase_orders.purchase_requisition_id', '=', 'purchase_requisition_items.purchase_requisition_id')
-                        ->sum('purchase_requisition_items.total_price'),
-                    0,
-                    ',',
-                    '.'
-                ))
+            // Purchase Order Expenses (IDR)
+            Stat::make('Purchase Order Expenses (IDR)', $this->formatRupiahShort($totalIDR))
+                ->description('Total Amount = Rp' . number_format($totalIDR, 0, ',', '.'))
                 ->descriptionIcon('heroicon-o-banknotes')
                 ->chart($this->getMonthlyExpenseData())
                 ->color('warning'),
 
+            // Purchase Order Expenses (USD)
             Stat::make('Purchase Order Expenses (USD)', '$' . number_format($totalUSD, 2, '.', ','))
                 ->description(
                     ($rate && $rate != 0
@@ -71,8 +68,9 @@ class StatsOverview extends BaseWidget
 
     private function getMonthlyExpenseData()
     {
-        $data = PurchaseOrder::join('purchase_requisition_items', 'purchase_orders.purchase_requisition_id', '=', 'purchase_requisition_items.purchase_requisition_id')
-            ->selectRaw('MONTH(purchase_orders.created_at) as month, SUM(purchase_requisition_items.total_price) as total')
+        // Mengambil data total_price dari purchase_order_lines
+        $data = PurchaseOrder::join('purchase_order_lines', 'purchase_orders.id', '=', 'purchase_order_lines.purchase_order_id')
+            ->selectRaw('MONTH(purchase_orders.created_at) as month, SUM(purchase_order_lines.total_price) as total')
             ->groupByRaw('MONTH(purchase_orders.created_at)')
             ->pluck('total', 'month')
             ->toArray();
