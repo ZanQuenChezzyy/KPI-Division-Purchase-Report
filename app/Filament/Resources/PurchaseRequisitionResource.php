@@ -274,7 +274,7 @@ class PurchaseRequisitionResource extends Resource
                                             ->columnSpan(1)
                                             ->required(),
                                         TextInput::make('total_price')
-                                            ->label('Price')
+                                            ->label('Estimated Total Price')
                                             ->placeholder('Price')
                                             ->mask(RawJs::make('$money($input)'))
                                             ->stripCharacters(',')
@@ -374,6 +374,7 @@ class PurchaseRequisitionResource extends Resource
                                     ->prefix('x ')
                                     ->columnSpan(1),
                                 TextEntry::make('total_price')
+                                    ->label('Estimated Total Price')
                                     ->prefix('Rp ')
                                     ->suffix('.00')
                                     ->numeric()

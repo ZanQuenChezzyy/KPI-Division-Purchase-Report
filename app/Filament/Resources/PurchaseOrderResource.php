@@ -6,6 +6,7 @@ use App\Filament\Resources\PurchaseOrderResource\Pages;
 use App\Filament\Resources\PurchaseOrderResource\RelationManagers;
 use App\Filament\Resources\PurchaseOrderResource\RelationManagers\PurchaseOrderLinesRelationManager;
 use App\Models\PurchaseOrder;
+use Closure;
 use Filament\Forms;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Grid;
@@ -17,6 +18,7 @@ use Filament\Forms\Components\Toggle;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Support\Enums\MaxWidth;
 use Filament\Tables;
@@ -131,6 +133,9 @@ class PurchaseOrderResource extends Resource
                                     })
                                     ->required(),
 
+                                TextInput::make('id')
+                                    ->hidden(),
+
                                 Toggle::make('is_received')
                                     ->label('Order Received')
                                     ->inline(false)
@@ -139,9 +144,28 @@ class PurchaseOrderResource extends Resource
                                     ->offIcon('heroicon-m-check')
                                     ->live()
                                     ->afterStateUpdated(function ($state, Set $set, Get $get) {
-                                        if ($state) {
-                                            $set('received_at', now());
+                                        if ($state) { // Cek jika user mencoba mengaktifkan toggle
+                                            $purchaseOrderId = $get('id'); // Ambil ID Purchase Order
+
+                                            // Cek apakah ada item yang belum berstatus '2' (Received)
+                                            $hasUnreceivedItems = \App\Models\PurchaseOrderLine::where('purchase_order_id', $purchaseOrderId)
+                                                ->where('status', '!=', 2)
+                                                ->exists();
+
+                                            if ($hasUnreceivedItems) {
+                                                // Hentikan perubahan dan tampilkan pesan error
+                                                $set('is_received', false); // Pastikan toggle tidak aktif
+                                                Notification::make()
+                                                    ->title('Cannot mark as received')
+                                                    ->body('Some items are not fully received yet.')
+                                                    ->danger()
+                                                    ->send();
+                                            } else {
+                                                // Semua item sudah received, set tanggalnya
+                                                $set('received_at', now());
+                                            }
                                         } else {
+                                            // Jika toggle dimatikan, kosongkan tanggal
                                             $set('received_at', null);
                                         }
                                     }),
@@ -153,10 +177,26 @@ class PurchaseOrderResource extends Resource
                                     ->onIcon('heroicon-m-bolt')
                                     ->offIcon('heroicon-m-x-mark')
                                     ->live()
-                                    ->afterStateUpdated(function ($state, callable $set) {
+                                    ->afterStateUpdated(function ($state, callable $set, callable $get) {
+                                        // Cek jika user mencoba mengaktifkan toggle
                                         if ($state) {
-                                            $set('closed_at', now());
+                                            $isReceived = $get('is_received'); // Ambil status is_received
+
+                                            // Jika belum received, tolak aktivasi
+                                            if (!$isReceived) {
+                                                $set('is_closed', false); // Kembalikan toggle ke off
+                                                Notification::make()
+                                                    ->title('Cannot close order')
+                                                    ->body('You must mark the order as received before closing it.')
+                                                    ->danger()
+                                                    ->send();
+                                                return false; // Hentikan update
+                                            } else {
+                                                // Set tanggal closed jika received sudah true
+                                                $set('closed_at', now());
+                                            }
                                         } else {
+                                            // Jika toggle dimatikan, kosongkan closed_at
                                             $set('closed_at', null);
                                         }
                                     }),
@@ -301,8 +341,14 @@ class PurchaseOrderResource extends Resource
                     ->prefix('Rp ')
                     ->summarize([
                         Average::make()
-                            ->label('')
+                            ->label('Expenses (IDR)')
                             ->prefix('Rp '),
+                        Average::make()
+                            ->label('Expenses (USD)')
+                            ->formatStateUsing(function ($state) {
+                                $rate = \App\Services\ExchangeRateService::getRate('IDR', 'USD');
+                                return $rate ? '$ ' . number_format($state * $rate, 2) : 'N/A';
+                            }),
                     ]),
 
                 ToggleColumn::make('is_confirmed')

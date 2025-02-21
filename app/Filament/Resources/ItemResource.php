@@ -71,7 +71,7 @@ class ItemResource extends Resource
                             ->required(),
 
                         TextInput::make('unit_price')
-                            ->label('Price / unit')
+                            ->label('Estimated Price / unit')
                             ->placeholder('Enter Price')
                             ->minValue(1000)
                             ->minLength(4)
@@ -115,7 +115,7 @@ class ItemResource extends Resource
                     ->label('Item')
                     ->searchable(),
                 TextColumn::make('unit_price')
-                    ->label('Price')
+                    ->label('Estimated Price / Unit')
                     ->money('IDR', locale: 'id')
                     ->sortable(),
                 TextColumn::make('unit')
