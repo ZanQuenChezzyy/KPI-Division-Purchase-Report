@@ -291,7 +291,7 @@ class PurchaseOrderResource extends Resource
                     ->limitList(3)
                     ->expandableLimitedList(),
 
-                TextColumn::make('purchaseRequisition.purchaseRequisitionItems.total_price')
+                TextColumn::make('purchaseOrderLines.total_price')
                     ->label('Total Price')
                     ->wrap()
                     ->listWithLineBreaks()

@@ -240,9 +240,14 @@ class PurchaseRequisitionResource extends Resource
                                             ->preload()
                                             ->searchable()
                                             ->reactive()
-                                            ->afterStateUpdated(function ($state, callable $set) {
-                                                $unitPrice = \App\Models\Item::find($state)?->unit_price ?? 0;
+                                            ->afterStateUpdated(function ($state, callable $get, callable $set) {
+                                                $item = \App\Models\Item::find($state);
+                                                $unitPrice = $item?->unit_price ?? 0;
                                                 $set('unit_price', $unitPrice);
+                                                $qty = $get('qty') ?? 1;
+                                                $totalPrice = $unitPrice * $qty;
+                                                $formattedTotalPrice = number_format($totalPrice, 0, '.', ',');
+                                                $set('total_price', $formattedTotalPrice);
                                             })
                                             ->columnSpan(3)
                                             ->required(),
@@ -259,7 +264,7 @@ class PurchaseRequisitionResource extends Resource
                                             ->minLength(1)
                                             ->maxLength(3)
                                             ->numeric()
-                                            ->reactive()
+                                            ->live(debounce: 800)
                                             ->afterStateUpdated(function ($state, callable $get, callable $set) {
                                                 $unitPrice = $get('unit_price') ?? 0;
                                                 $totalPrice = $unitPrice * $state;
