@@ -14,13 +14,15 @@ class PurchaseRequisitionObserver
      */
     public function created(PurchaseRequisition $purchaseRequisition): void
     {
-        $recepient = Auth::user();
-        $userFullName = Auth::user()->name;
+        if (Auth::check()) {
+            $recepient = Auth::user();
+            $userFullName = $recepient->name;
 
-        Notification::make()
-            ->title($userFullName . ' has Added a new Purchase Requisition: Number - ' . $purchaseRequisition->number)
-            ->body('Details of the new Purchase Requisition have been added successfully. Please review the requisition for approval or further actions.')
-            ->sendToDatabase($recepient);
+            Notification::make()
+                ->title($userFullName . ' has Added a new Purchase Requisition: Number - ' . $purchaseRequisition->number)
+                ->body('Details of the new Purchase Requisition have been added successfully. Please review the requisition for approval or further actions.')
+                ->sendToDatabase($recepient);
+        }
     }
 
     /**
@@ -28,13 +30,15 @@ class PurchaseRequisitionObserver
      */
     public function updated(PurchaseRequisition $purchaseRequisition): void
     {
-        $recepient = Auth::user();
-        $userFullName = Auth::user()->name;
+        if (Auth::check()) {
+            $recepient = Auth::user();
+            $userFullName = $recepient->name;
 
-        Notification::make()
-            ->title($userFullName . ' has Updated Purchase Requisition: Number - ' . $purchaseRequisition->number)
-            ->body('The Purchase Requisition number ' . $purchaseRequisition->number . ' has been updated. Please review the latest changes made to the requisition.')
-            ->sendToDatabase($recepient);
+            Notification::make()
+                ->title($userFullName . ' has Updated Purchase Requisition: Number - ' . $purchaseRequisition->number)
+                ->body('The Purchase Requisition number ' . $purchaseRequisition->number . ' has been updated. Please review the latest changes made to the requisition.')
+                ->sendToDatabase($recepient);
+        }
     }
 
     /**
@@ -42,13 +46,15 @@ class PurchaseRequisitionObserver
      */
     public function deleted(PurchaseRequisition $purchaseRequisition): void
     {
-        $recepient = Auth::user();
-        $userFullName = Auth::user()->name;
+        if (Auth::check()) {
+            $recepient = Auth::user();
+            $userFullName = $recepient->name;
 
-        Notification::make()
-            ->title($userFullName . ' has Deleted Purchase Requisition: Number - ' . $purchaseRequisition->number)
-            ->body('The Purchase Requisition with number ' . $purchaseRequisition->number . ' has been deleted. If this was a mistake, please restore the requisition as needed.')
-            ->sendToDatabase($recepient);
+            Notification::make()
+                ->title($userFullName . ' has Deleted Purchase Requisition: Number - ' . $purchaseRequisition->number)
+                ->body('The Purchase Requisition with number ' . $purchaseRequisition->number . ' has been deleted. If this was a mistake, please restore the requisition as needed.')
+                ->sendToDatabase($recepient);
+        }
     }
 
     /**

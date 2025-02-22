@@ -10,6 +10,9 @@ use Filament\Widgets\StatsOverviewWidget\Stat;
 
 class StatsOverview extends BaseWidget
 {
+    protected static ?int $sort = 1;
+    protected int|string|array $columnSpan = 'full';
+
     protected function getStats(): array
     {
         // Hitung Total IDR dari purchase_order_lines
@@ -37,22 +40,22 @@ class StatsOverview extends BaseWidget
 
             // Purchase Order Expenses (IDR)
             Stat::make('Purchase Order Expenses (IDR)', $this->formatRupiahShort($totalIDR))
-                ->description('Total Amount = Rp' . number_format($totalIDR, 0, ',', '.'))
+                ->description('Total Amount Rp' . number_format($totalIDR, 0, ',', '.'))
                 ->descriptionIcon('heroicon-o-banknotes')
                 ->chart($this->getMonthlyExpenseData())
                 ->color('warning'),
 
             // Purchase Order Expenses (USD)
-            Stat::make('Purchase Order Expenses (USD)', '$' . number_format($totalUSD, 2, '.', ','))
+            Stat::make('Purchase Order Expenses (USD)', $this->formatUSDShort($totalUSD))
                 ->description(
                     ($rate && $rate != 0
-                        ? "Exchange Rate $1 = Rp" . number_format(1 / $rate, 0, ',', '.')
-                        : "Exchange Rate: Unavailable"
+                        ? "Total Amount $" . number_format($totalUSD, 2, '.', ',') . " Exchange Rate $1 = Rp" . number_format(1 / $rate, 0, ',', '.')
+                        : "Total Amount = $" . number_format($totalUSD, 2, '.', ',') . " Exchange Rate: Unavailable"
                     )
                 )
                 ->descriptionIcon('heroicon-o-banknotes')
                 ->chart($this->getMonthlyExpenseData())
-                ->color('warning'),
+                ->color('warning')
         ];
     }
 
@@ -80,14 +83,39 @@ class StatsOverview extends BaseWidget
 
     private function formatRupiahShort($number)
     {
-        if ($number >= 1_000_000_000) {
-            return 'Rp' . number_format($number / 1_000_000_000, 2, ',', '.') . ' Miliar';
+        if ($number >= 1_000_000_000_000_000_000) {
+            return 'Rp' . number_format($number / 1_000_000_000_000_000_000, 2, '.', ',') . ' Quintillion';
+        } elseif ($number >= 1_000_000_000_000_000) {
+            return 'Rp' . number_format($number / 1_000_000_000_000_000, 2, '.', ',') . ' Quadrillion';
+        } elseif ($number >= 1_000_000_000_000) {
+            return 'Rp' . number_format($number / 1_000_000_000_000, 2, '.', ',') . ' Trillion';
+        } elseif ($number >= 1_000_000_000) {
+            return 'Rp' . number_format($number / 1_000_000_000, 2, '.', ',') . ' Billion';
         } elseif ($number >= 1_000_000) {
-            return 'Rp' . number_format($number / 1_000_000, 0, ',', '.') . ' Juta';
+            return 'Rp' . number_format($number / 1_000_000, 0, '.', ',') . ' Million';
         } elseif ($number >= 1_000) {
-            return 'Rp' . number_format($number / 1_000, 0, ',', '.') . ' Ribu';
+            return 'Rp' . number_format($number / 1_000, 0, '.', ',') . ' Thousand';
         }
 
-        return 'Rp' . number_format($number, 0, ',', '.');
+        return 'Rp' . number_format($number, 0, '.', ',');
+    }
+
+    private function formatUSDShort($number)
+    {
+        if ($number >= 1_000_000_000_000_000_000) {
+            return '$' . number_format($number / 1_000_000_000_000_000_000, 2, '.', ',') . ' Quintillion';
+        } elseif ($number >= 1_000_000_000_000_000) {
+            return '$' . number_format($number / 1_000_000_000_000_000, 2, '.', ',') . ' Quadrillion';
+        } elseif ($number >= 1_000_000_000_000) {
+            return '$' . number_format($number / 1_000_000_000_000, 2, '.', ',') . ' Trillion';
+        } elseif ($number >= 1_000_000_000) {
+            return '$' . number_format($number / 1_000_000_000, 2, '.', ',') . ' Billion';
+        } elseif ($number >= 1_000_000) {
+            return '$' . number_format($number / 1_000_000, 2, '.', ',') . ' Million';
+        } elseif ($number >= 1_000) {
+            return '$' . number_format($number / 1_000, 2, '.', ',') . ' Thousand';
+        }
+
+        return '$' . number_format($number, 2, '.', ',');
     }
 }

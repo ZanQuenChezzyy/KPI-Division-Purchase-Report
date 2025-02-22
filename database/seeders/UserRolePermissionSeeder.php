@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Department;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -16,6 +17,21 @@ class UserRolePermissionSeeder extends Seeder
      */
     public function run(): void
     {
+        // Create departments
+        $departments = [
+            'Finance',
+            'Human Resources',
+            'IT',
+            'Marketing',
+        ];
+
+        $departmentIds = [];
+
+        foreach ($departments as $deptName) {
+            $department = Department::firstOrCreate(['name' => $deptName]);
+            $departmentIds[$deptName] = $department->id;
+        }
+
         // Permissions for users
         $permissions = [
             'Create Users',
@@ -41,22 +57,24 @@ class UserRolePermissionSeeder extends Seeder
 
         foreach ($roles as $roleName => $rolePermissions) {
             $role = Role::firstOrCreate(['name' => $roleName]);
-            $role->givePermissionTo($rolePermissions);
+            $role->syncPermissions($rolePermissions);
         }
 
-        // Create users and assign roles
+        // Create users and assign roles with department
         $users = [
             [
                 'name' => 'Administrator',
                 'email' => 'admin@starter.com',
                 'password' => Hash::make('12345678'),
                 'role' => 'Administrator',
+                'department' => 'IT', // Assign to IT department
             ],
             [
                 'name' => 'User',
                 'email' => 'user@starter.com',
                 'password' => Hash::make('12345678'),
                 'role' => 'User',
+                'department' => 'Marketing', // Assign to Marketing department
             ],
         ];
 
@@ -69,9 +87,16 @@ class UserRolePermissionSeeder extends Seeder
                 ]
             );
 
+            // Assign role
             $user->assignRole($userData['role']);
+
+            // Attach department using pivot table
+            $departmentId = $departmentIds[$userData['department']] ?? null;
+            if ($departmentId) {
+                $user->departments()->syncWithoutDetaching([$departmentId]);
+            }
         }
 
-        $this->command->info('Roles, Permissions, dan Users Telah berhasil dibuat!');
+        $this->command->info('Roles, Permissions, Departments, and Users have been created successfully!');
     }
 }

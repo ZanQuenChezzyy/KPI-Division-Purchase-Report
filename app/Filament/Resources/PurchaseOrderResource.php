@@ -29,6 +29,7 @@ use Filament\Tables\Actions\ViewAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\Summarizers\Average;
 use Filament\Tables\Columns\Summarizers\Range;
+use Filament\Tables\Columns\Summarizers\Sum;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -300,7 +301,8 @@ class PurchaseOrderResource extends Resource
 
                 TextColumn::make('userDepartment.user.name')
                     ->label('Buyer')
-                    ->searchable(),
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('purchaseRequisition.status')
                     ->label('Requisition Status')
@@ -321,15 +323,17 @@ class PurchaseOrderResource extends Resource
                         1 => 'danger',
                         2 => 'success',
                         default => 'gray',
-                    }),
+                    })
+                    ->toggleable(isToggledHiddenByDefault: true),
 
-                TextColumn::make('purchaseRequisition.purchaseRequisitionItems.item.name')
+                TextColumn::make('purchaseOrderLines.item.name')
                     ->label('Requisition Items')
                     ->listWithLineBreaks()
                     ->bulleted()
                     ->limit(20)
                     ->limitList(3)
-                    ->expandableLimitedList(),
+                    ->expandableLimitedList()
+                    ->disabledClick(),
 
                 TextColumn::make('purchaseOrderLines.total_price')
                     ->label('Total Price')
@@ -340,16 +344,18 @@ class PurchaseOrderResource extends Resource
                     ->numeric()
                     ->prefix('Rp ')
                     ->summarize([
-                        Average::make()
+                        Sum::make()
                             ->label('Expenses (IDR)')
                             ->prefix('Rp '),
-                        Average::make()
+                        Sum::make()
                             ->label('Expenses (USD)')
                             ->formatStateUsing(function ($state) {
                                 $rate = \App\Services\ExchangeRateService::getRate('IDR', 'USD');
                                 return $rate ? '$ ' . number_format($state * $rate, 2) : 'N/A';
                             }),
-                    ]),
+                    ])
+                    ->expandableLimitedList()
+                    ->disabledClick(),
 
                 ToggleColumn::make('is_confirmed')
                     ->label('Is Confirmed')

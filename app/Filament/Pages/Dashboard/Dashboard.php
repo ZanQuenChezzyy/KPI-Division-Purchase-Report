@@ -8,4 +8,8 @@ class Dashboard extends \Filament\Pages\Dashboard
     protected static ?string $navigationIcon = 'heroicon-o-home';
     protected static ?string $activeNavigationIcon = 'heroicon-s-home';
     protected static ?int $navigationSort = -2;
+    public function getColumns(): int|string|array
+    {
+        return 4;
+    }
 }

@@ -7,6 +7,10 @@
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
 
+php artisan migrate:fresh
+php artisan db:seed --class=UserRolePermissionSeeder
+php artisan db:seed --class=DummyDataSeeder
+
 ## (ID) Langkah Instalasi
 
 ### Harap Diperhatikan
