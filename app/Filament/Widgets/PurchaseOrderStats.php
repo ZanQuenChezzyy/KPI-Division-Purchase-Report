@@ -7,9 +7,12 @@ use App\Models\PurchaseOrderLine;
 use Carbon\Carbon;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
+use Illuminate\Support\Facades\DB;
 
 class PurchaseOrderStats extends BaseWidget
 {
+    protected static ?int $sort = 2;
+
     protected function getStats(): array
     {
         // Total PO
@@ -19,98 +22,75 @@ class PurchaseOrderStats extends BaseWidget
         $confirmedPO = PurchaseOrder::where('is_confirmed', true)->count();
         $confirmedRate = $totalPO > 0 ? round(($confirmedPO / $totalPO) * 100, 2) : 0;
 
-        // PO yang sudah diterima
-        $receivedPO = PurchaseOrder::where('is_received', true)->count();
-        $receivedRate = $totalPO > 0 ? round(($receivedPO / $totalPO) * 100, 2) : 0;
-
-        // PO yang sudah selesai/ditutup
-        $closedPO = PurchaseOrder::where('is_closed', true)->count();
-        $closedRate = $totalPO > 0 ? round(($closedPO / $totalPO) * 100, 2) : 0;
+        // PO yang belum dikonfirmasi
+        $notConfirmedPO = PurchaseOrder::where('is_confirmed', false)->count();
+        $notConfirmedRate = $totalPO > 0 ? round(($notConfirmedPO / $totalPO) * 100, 2) : 0;
 
         // Total PO Lines
         $totalPOLines = PurchaseOrderLine::count();
 
         return [
-            // PO Confirmed
             Stat::make('Confirmed Purchase Orders', "{$confirmedRate}%")
                 ->description("{$confirmedPO} / {$totalPO} PO Confirmed")
                 ->descriptionIcon('heroicon-o-check-circle')
                 ->color('success')
-                ->chart($this->getTrends('is_confirmed')),
+                ->chart($this->getTrendsByStatus(true)),
 
-            // PO Received
-            Stat::make('Received Purchase Orders', "{$receivedRate}%")
-                ->description("{$receivedPO} / {$totalPO} PO Received")
-                ->descriptionIcon('heroicon-o-truck')
-                ->color('info')
-                ->chart($this->getTrends('is_received')),
+            Stat::make('Not Confirmed Purchase Orders', "{$notConfirmedRate}%")
+                ->description("{$notConfirmedPO} / {$totalPO} PO Not Confirmed")
+                ->descriptionIcon('heroicon-o-x-circle')
+                ->color('danger')
+                ->chart($this->getTrendsByStatus(false)),
 
-            // PO Closed
-            Stat::make('Closed Purchase Orders', "{$closedRate}%")
-                ->description("{$closedPO} / {$totalPO} PO Closed")
-                ->descriptionIcon('heroicon-o-lock-closed')
-                ->color('gray')
-                ->chart($this->getTrends('is_closed')),
-
-            // Total PO
             Stat::make('Total Purchase Orders', "{$totalPO}")
                 ->description('Total Purchase Orders')
                 ->descriptionIcon('heroicon-o-document-text')
-                ->color('primary')
-                ->chart($this->getTrends()),
+                ->color('info')
+                ->chart($this->getTotalPOTrends()),
 
-            // Total PO Lines
             Stat::make('Total Purchase Order Lines', "{$totalPOLines}")
                 ->description('Total Lines in all POs')
                 ->descriptionIcon('heroicon-o-clipboard-document-list')
-                ->color('info')
-                ->chart($this->getLinesTrends()),
+                ->color('gray')
+                ->chart($this->getTotalPOLinesTrends()),
         ];
     }
 
-    private function getTrends($statusColumn = null)
+    private function getTrendsByStatus(bool $status): array
     {
-        $dateRange = Carbon::now()->subDays(6)->startOfDay();
+        return $this->getTrends('created_at', function ($query) use ($status) {
+            return $query->where('is_confirmed', $status);
+        });
+    }
 
-        $query = PurchaseOrder::selectRaw('DATE(created_at) as tanggal, COUNT(*) as total')
-            ->where('created_at', '>=', $dateRange)
+    private function getTotalPOTrends(): array
+    {
+        return $this->getTrends('created_at');
+    }
+
+    private function getTotalPOLinesTrends(): array
+    {
+        return $this->getTrends('created_at', null, PurchaseOrderLine::class);
+    }
+
+    private function getTrends(string $dateColumn, ?callable $filter = null, string $model = PurchaseOrder::class): array
+    {
+        // Ambil 7 hari terakhir dari hari ini
+        $dates = collect(range(6, 0))->map(fn($i) => now()->subDays($i)->toDateString())->toArray();
+
+        // Query data
+        $query = $model::selectRaw("DATE({$dateColumn}) as tanggal, COUNT(*) as total")
+            ->whereBetween($dateColumn, [now()->subDays(6)->startOfDay(), now()->endOfDay()])
             ->groupBy('tanggal')
-            ->orderBy('tanggal');
+            ->orderBy('tanggal', 'asc');
 
-        if (!is_null($statusColumn)) {
-            $query->where($statusColumn, true);
+        if ($filter) {
+            $query = $filter($query);
         }
 
         $data = $query->pluck('total', 'tanggal')->toArray();
 
-        // Isi data 7 hari terakhir dengan default 0 jika tidak ada data
-        $sevenDays = [];
-        for ($i = 6; $i >= 0; $i--) {
-            $date = Carbon::now()->subDays($i)->toDateString();
-            $sevenDays[] = $data[$date] ?? 0;
-        }
-
-        return $sevenDays;
-    }
-
-    private function getLinesTrends()
-    {
-        $dateRange = Carbon::now()->subDays(6)->startOfDay();
-
-        $data = PurchaseOrderLine::selectRaw('DATE(created_at) as tanggal, COUNT(*) as total')
-            ->where('created_at', '>=', $dateRange)
-            ->groupBy('tanggal')
-            ->orderBy('tanggal')
-            ->pluck('total', 'tanggal')
-            ->toArray();
-
-        // Isi data 7 hari terakhir dengan default 0 jika tidak ada data
-        $sevenDays = [];
-        for ($i = 6; $i >= 0; $i--) {
-            $date = Carbon::now()->subDays($i)->toDateString();
-            $sevenDays[] = $data[$date] ?? 0;
-        }
-
-        return $sevenDays;
+        // Pastikan setiap tanggal dalam 7 hari terakhir memiliki nilai
+        return collect($dates)->mapWithKeys(fn($date) => [$date => $data[$date] ?? 0])->values()->toArray();
     }
 }

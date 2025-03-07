@@ -111,6 +111,7 @@ class DummyDataSeeder extends Seeder
                 'department_id' => $faker->randomElement($departments),
                 'status' => $status,
                 'approved_at' => $status === 2 ? $faker->dateTimeThisYear() : null, // Approved only if status === 2
+                'cancelled_at' => $status === 1 ? $faker->dateTimeThisYear() : null, // Cancelled only if status === 1
             ]);
 
             $requisitions[] = $requisition->id;
@@ -118,15 +119,15 @@ class DummyDataSeeder extends Seeder
 
             // Seed Purchase Requisition Items
             for ($j = 0; $j < 15; $j++) {
-                $qty = $faker->numberBetween(1, 20); // Ambil qty
-                $unitPrice = $faker->randomFloat(2, 100000, 50000000); // Ambil unit price
+                $qty = $faker->numberBetween(1, 20);
+                $unitPrice = $faker->randomFloat(2, 100000, 50000000);
 
                 PurchaseRequisitionItem::create([
                     'purchase_requisition_id' => $requisition->id,
                     'item_id' => $faker->randomElement($items),
                     'qty' => $qty,
                     'unit_price' => $unitPrice,
-                    'total_price' => $qty * $unitPrice, // Hitung total_price = qty * unit_price
+                    'total_price' => $qty * $unitPrice,
                 ]);
             }
         }
@@ -151,6 +152,8 @@ class DummyDataSeeder extends Seeder
                     'purchase_requisition_id' => $approvedRequisitionId,
                     'vendor_id' => $faker->randomElement($vendors),
                     'buyer' => $faker->randomElement($users),
+                    'eta' => $faker->numerify('######'),
+                    'mar_no' => $faker->numerify('######'),
                     'is_confirmed' => true,
                     'is_received' => false, // Akan diupdate jika semua lines diterima
                     'is_closed' => false,   // Akan diupdate jika semua diterima

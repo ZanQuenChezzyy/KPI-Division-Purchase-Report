@@ -7,18 +7,22 @@ use App\Models\PurchaseRequisitionItem;
 use Carbon\Carbon;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class PurchaseRequisitionStats extends BaseWidget
 {
+    protected static ?int $sort = 1;
+
     protected function getStats(): array
     {
         // Total PR
         $totalPR = PurchaseRequisition::count();
 
-        // PR Sukses (status = 2 -> Approved)
+        // PR Approved
         $successfulPR = PurchaseRequisition::where('status', 2)->count();
 
-        // PR Gagal (status = 1 -> Cancelled)
+        // PR Cancelled
         $cancelledPR = PurchaseRequisition::where('status', 1)->count();
 
         // Total PR Items
@@ -29,73 +33,90 @@ class PurchaseRequisitionStats extends BaseWidget
         $cancelRate = $totalPR > 0 ? round(($cancelledPR / $totalPR) * 100, 2) : 0;
 
         return [
-            // PR Successful
             Stat::make('Purchase Requisition Successful', "{$successRate}%")
                 ->description("{$successfulPR} / {$totalPR} PR Approved")
                 ->descriptionIcon('heroicon-o-check-circle')
                 ->color('success')
-                ->chart($this->getTrends(2)), // Ambil data hanya untuk PR Approved
+                ->chart($this->getTrendsByStatus(2, 'approved_at')),
 
-            // PR Cancelled
             Stat::make('Purchase Requisition Cancelled', "{$cancelRate}%")
                 ->description("{$cancelledPR} / {$totalPR} PR Cancelled")
                 ->descriptionIcon('heroicon-o-x-circle')
                 ->color('danger')
-                ->chart($this->getTrends(1)), // Ambil data hanya untuk PR Cancelled
+                ->chart($this->getTrendsByStatus(1, 'cancelled_at')),
 
-            // Total PR
             Stat::make('Total Purchase Requisition', "{$totalPR}")
                 ->description('Total Purchase Requisitions')
                 ->descriptionIcon('heroicon-o-document-text')
-                ->color('primary')
-                ->chart($this->getTrends()), // Ambil semua PR tanpa filter status
-
-            // Total PR Items
-            Stat::make('Total Purchase Requisition Items', "{$totalPRItems}")
-                ->description('Total Items in all PRs')
-                ->descriptionIcon('heroicon-o-clipboard-document-list')
                 ->color('info')
-                ->chart($this->getItemsTrends()), // Ambil data untuk total PR Items
+                ->chart($this->getTotalPRTrends()),
+
+            Stat::make('Total Purchase Requisition Items', "{$totalPRItems}")
+                ->description('Total Items in all PR')
+                ->descriptionIcon('heroicon-o-clipboard-document-list')
+                ->color('gray')
+                ->chart($this->getTotalPRItemsTrends()),
         ];
     }
 
-    private function getTrends($status = null)
+    /**
+     * Mengembalikan tren PR berdasarkan status dan kolom tanggal yang relevan
+     */
+    private function getTrendsByStatus($status = null, $dateColumn = 'created_at')
     {
         $dateRange = Carbon::now()->subDays(6)->startOfDay();
 
-        $query = PurchaseRequisition::selectRaw('DATE(created_at) as tanggal, COUNT(*) as total')
-            ->where('created_at', '>=', $dateRange)
+        $data = PurchaseRequisition::selectRaw("DATE({$dateColumn}) as tanggal, COUNT(*) as total")
+            ->whereNotNull($dateColumn)
+            ->where($dateColumn, '>=', $dateRange)
+            ->when(!is_null($status), fn($query) => $query->where('status', $status))
             ->groupBy('tanggal')
-            ->orderBy('tanggal');
+            ->orderBy('tanggal', 'asc')
+            ->pluck('total', 'tanggal')
+            ->toArray();
 
-        if (!is_null($status)) {
-            $query->where('status', $status);
-        }
-
-        $data = $query->pluck('total', 'tanggal')->toArray();
-
-        // Buat array 7 hari terakhir dengan nilai default 0
-        $sevenDays = [];
-        for ($i = 6; $i >= 0; $i--) {
-            $date = Carbon::now()->subDays($i)->toDateString();
-            $sevenDays[] = $data[$date] ?? 0;
-        }
-
-        return $sevenDays;
+        return $this->formatSevenDaysData($data);
     }
 
-    private function getItemsTrends()
+    /**
+     * Mengembalikan tren untuk Total Purchase Requisition
+     */
+    private function getTotalPRTrends()
+    {
+        $dateRange = Carbon::now()->subDays(6)->startOfDay();
+
+        $data = PurchaseRequisition::selectRaw('DATE(created_at) as tanggal, COUNT(*) as total')
+            ->where('created_at', '>=', $dateRange)
+            ->groupBy('tanggal')
+            ->orderBy('tanggal', 'asc')
+            ->pluck('total', 'tanggal')
+            ->toArray();
+
+        return $this->formatSevenDaysData($data);
+    }
+
+    /**
+     * Mengembalikan tren untuk Total Purchase Requisition Items
+     */
+    private function getTotalPRItemsTrends()
     {
         $dateRange = Carbon::now()->subDays(6)->startOfDay();
 
         $data = PurchaseRequisitionItem::selectRaw('DATE(created_at) as tanggal, COUNT(*) as total')
             ->where('created_at', '>=', $dateRange)
             ->groupBy('tanggal')
-            ->orderBy('tanggal')
+            ->orderBy('tanggal', 'asc')
             ->pluck('total', 'tanggal')
             ->toArray();
 
-        // Isi 7 hari terakhir dengan nilai default 0
+        return $this->formatSevenDaysData($data);
+    }
+
+    /**
+     * Format data agar tetap mencakup 7 hari terakhir meskipun tidak ada data.
+     */
+    private function formatSevenDaysData($data)
+    {
         $sevenDays = [];
         for ($i = 6; $i >= 0; $i--) {
             $date = Carbon::now()->subDays($i)->toDateString();
