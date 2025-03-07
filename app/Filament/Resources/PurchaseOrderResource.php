@@ -101,7 +101,7 @@ class PurchaseOrderResource extends Resource
 
                         Select::make('buyer')
                             ->label('Buyer')
-                            ->placeholder('Enter Buyer Name')
+                            ->placeholder('Select Buyer Name')
                             ->relationship('userDepartment.user', 'name')
                             ->native(false)
                             ->preload()
@@ -113,6 +113,19 @@ class PurchaseOrderResource extends Resource
                                 return "$name - $department";
                             })
                             ->required(),
+
+                        TextInput::make('eta')
+                            ->label('ETA')
+                            ->placeholder('Enter ETA')
+                            ->minLength(3)
+                            ->maxLength(15),
+
+                        TextInput::make('mar_no')
+                            ->label('Mar Number')
+                            ->placeholder('Enter ETA')
+                            ->minLength(3)
+                            ->maxLength(15),
+
                     ])->columns(2)
                     ->columnSpan(3),
                 Section::make('Order Status')

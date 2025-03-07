@@ -15,6 +15,8 @@ return new class extends Migration {
             $table->foreignId('purchase_requisition_id')->constrained('purchase_requisitions')->cascadeOnDelete();
             $table->foreignId('vendor_id')->constrained('vendors')->cascadeOnDelete();
             $table->foreignId('buyer')->constrained('user_departments')->cascadeOnDelete();
+            $table->string('eta', 25)->nullable();
+            $table->string('mar_no', 25)->nullable();
             $table->boolean('is_confirmed')->default(false);
             $table->boolean('is_received')->default(false);
             $table->boolean('is_closed')->default(false);

@@ -73,6 +73,7 @@ class PurchaseRequisitionResource extends Resource
                                     ->maxLength(10)
                                     ->numeric()
                                     ->required(),
+
                                 Select::make('purchase_type_id')
                                     ->label('Purchase Type')
                                     ->placeholder('Select Purchase Type')
@@ -81,6 +82,7 @@ class PurchaseRequisitionResource extends Resource
                                     ->preload()
                                     ->searchable()
                                     ->required(),
+
                                 Textarea::make('description')
                                     ->label('Description')
                                     ->placeholder('Enter Description')
@@ -112,6 +114,7 @@ class PurchaseRequisitionResource extends Resource
                                         $set('department_id', $departmentId);
                                     })
                                     ->required(),
+
                                 Select::make('department_id')
                                     ->label('Department')
                                     ->placeholder('Select Department')
