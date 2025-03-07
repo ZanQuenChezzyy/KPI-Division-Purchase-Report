@@ -68,16 +68,26 @@ class PurchaseOrderResource extends Resource
                         Select::make('purchase_requisition_id')
                             ->label('Purchase Requisition')
                             ->placeholder('Select Purchase Requisition')
-                            ->relationship('purchaseRequisition', 'id', fn(Builder $query) => $query->where('status', 2))
+                            ->relationship('purchaseRequisition', 'id', function (Builder $query) {
+                                $search = request('search'); // Ambil nilai pencarian dari request
+
+                                $query->where('status', 2)
+                                    ->where(function ($query) use ($search) {
+                                        $query->where('number', 'like', "%{$search}%") // Cari berdasarkan nomor
+                                            ->orWhereHas('userDepartment.user', function ($query) use ($search) {
+                                                $query->where('name', 'like', "%{$search}%"); // Cari berdasarkan nama user
+                                            });
+                                    });
+                            })
                             ->native(false)
                             ->preload()
                             ->columnSpanFull()
                             ->noSearchResultsMessage('No Purchase Requisition found.')
-                            ->searchable(['number', 'userDepartment.user.name']) // Mencari berdasarkan nama user
+                            ->searchable(['number']) // Tetap menyertakan 'number' agar fitur searchable Filament bisa bekerja dengan baik
                             ->getOptionLabelFromRecordUsing(function (Model $record) {
                                 $number = $record->number;
                                 $type = $record->purchaseType->name;
-                                $requestedBy = $record->userDepartment->user->name; // Ambil nama user dari relasi
+                                $requestedBy = optional($record->userDepartment->user)->name ?? 'Unknown'; // Menghindari error jika user tidak ada
                                 $department = $record->department->name;
 
                                 return "($number) - $type [$requestedBy, $department]";
