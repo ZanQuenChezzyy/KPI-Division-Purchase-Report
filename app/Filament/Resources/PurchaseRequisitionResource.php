@@ -242,10 +242,12 @@ class PurchaseRequisitionResource extends Resource
                                             ->reactive()
                                             ->afterStateUpdated(function ($state, callable $get, callable $set) {
                                                 $item = \App\Models\Item::find($state);
-                                                $unitPrice = $item?->unit_price ?? 0;
+                                                $unitPrice = (float) ($item?->unit_price ?? 0);
                                                 $set('unit_price', $unitPrice);
-                                                $qty = $get('qty') ?? 1;
+
+                                                $qty = (int) ($get('qty') ?? 1);
                                                 $totalPrice = $unitPrice * $qty;
+
                                                 $formattedTotalPrice = number_format($totalPrice, 0, '.', ',');
                                                 $set('total_price', $formattedTotalPrice);
                                             })
