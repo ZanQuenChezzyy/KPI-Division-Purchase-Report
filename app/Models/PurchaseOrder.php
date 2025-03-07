@@ -13,6 +13,8 @@ class PurchaseOrder extends Model
         'purchase_requisition_id',
         'vendor_id',
         'buyer',
+        'eta',
+        'mar_no',
         'is_confirmed',
         'is_received',
         'is_closed',

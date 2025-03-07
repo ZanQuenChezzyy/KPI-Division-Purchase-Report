@@ -178,7 +178,7 @@ class PurchaseRequisitionResource extends Resource
                         Section::make('Purchase Items')
                             ->schema([
                                 Repeater::make('Items')
-                                    ->label('Purchase Requisition Items')
+                                    ->label('Purchase Requisition Line')
                                     ->relationship('purchaseRequisitionItems')
                                     ->schema([
                                         Select::make('item_id')
@@ -398,13 +398,14 @@ class PurchaseRequisitionResource extends Resource
                         1 => 'Pending',
                         2 => 'Approved',
                         3 => 'Cancelled',
-                        default => 'Unknown', // Optional fallback for unexpected values
+                        default => 'Unknown',
                     }),
             ])
             ->defaultGroup('Department.name')
             ->columns([
                 TextColumn::make('number')
                     ->label('Number')
+                    ->searchable()
                     ->sortable(),
 
                 TextColumn::make('purchaseType.name')
@@ -415,7 +416,7 @@ class PurchaseRequisitionResource extends Resource
                 TextColumn::make('UserDepartment.User.name')
                     ->label('Requested By')
                     ->description(fn(PurchaseRequisition $record): string => $record->Department->name)
-                    ->searchable(['department.name', 'requested_by']),
+                    ->searchable(['department_id', 'requested_by']),
 
                 TextColumn::make('status')
                     ->badge()

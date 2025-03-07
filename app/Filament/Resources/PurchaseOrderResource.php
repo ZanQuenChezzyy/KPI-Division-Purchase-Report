@@ -284,6 +284,7 @@ class PurchaseOrderResource extends Resource
             ->columns([
                 TextColumn::make('purchaseRequisition.number')
                     ->label('Number')
+                    ->searchable()
                     ->sortable(),
 
                 TextColumn::make('purchaseRequisition.purchaseType.name')
@@ -293,6 +294,7 @@ class PurchaseOrderResource extends Resource
 
                 TextColumn::make('purchaseRequisition.userDepartment.user.name')
                     ->label('Requested By')
+                    ->searchable()
                     ->description(fn(PurchaseOrder $record): string => $record->PurchaseRequisition->Department->name),
 
                 TextColumn::make('vendor.name')
