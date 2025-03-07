@@ -367,7 +367,7 @@ class PurchaseRequisitionResource extends Resource
                             ])->columns(1)
                             ->columnSpan(4),
                         RepeatableEntry::make('purchaseRequisitionItems')
-                            ->label('Purchase Requisition Items')
+                            ->label('Purchase Requisition Line')
                             ->schema([
                                 TextEntry::make('Item.name')
                                     ->label('Item Name')
