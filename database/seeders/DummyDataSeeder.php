@@ -143,10 +143,13 @@ class DummyDataSeeder extends Seeder
         } else {
             $poCount = count($approvedRequisitions); // Total PO berdasarkan requisitions
             $targetFullyReceived = ceil($poCount / 2); // Setengah dari PO harus fully received
-            $fullyReceivedCounter = 0; // Counter untuk track PO yang sudah fully received
+            $targetNotConfirmed = ceil($poCount / 3); // 1/3 dari total PO harus tidak confirmed
+            $fullyReceivedCounter = 0; // Counter untuk PO yang fully received
+            $notConfirmedCounter = 0;  // Counter untuk PO yang tidak confirmed
 
             foreach ($approvedRequisitions as $index => $approvedRequisitionId) {
                 $makeFullyReceived = $fullyReceivedCounter < $targetFullyReceived;
+                $makeNotConfirmed = $notConfirmedCounter < $targetNotConfirmed;
 
                 $po = PurchaseOrder::create([
                     'purchase_requisition_id' => $approvedRequisitionId,
@@ -154,10 +157,10 @@ class DummyDataSeeder extends Seeder
                     'buyer' => $faker->randomElement($users),
                     'eta' => $faker->numerify('######'),
                     'mar_no' => $faker->numerify('######'),
-                    'is_confirmed' => true,
+                    'is_confirmed' => !$makeNotConfirmed, // 1/3 dari PO akan `false`
                     'is_received' => false, // Akan diupdate jika semua lines diterima
                     'is_closed' => false,   // Akan diupdate jika semua diterima
-                    'confirmed_at' => $faker->dateTimeThisYear(),
+                    'confirmed_at' => $makeNotConfirmed ? null : $faker->dateTimeThisYear(),
                     'received_at' => $faker->dateTimeThisYear(),
                     'closed_at' => $faker->dateTimeThisYear(),
                 ]);
@@ -196,13 +199,18 @@ class DummyDataSeeder extends Seeder
                     ]);
                 }
 
-                // Update is_received dan is_closed jika semua lines diterima
-                if ($allLinesReceived || $makeFullyReceived) {
+                // Update is_received dan is_closed jika semua lines diterima, kecuali untuk yang is_confirmed = false
+                if (($allLinesReceived || $makeFullyReceived) && !$makeNotConfirmed) {
                     $po->update([
                         'is_received' => true,
                         'is_closed' => true,
                     ]);
                     $fullyReceivedCounter++; // Tambah counter untuk PO yang fully received
+                }
+
+                // Tambah counter untuk PO yang tidak confirmed
+                if ($makeNotConfirmed) {
+                    $notConfirmedCounter++;
                 }
             }
         }
