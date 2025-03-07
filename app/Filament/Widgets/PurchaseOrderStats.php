@@ -58,7 +58,8 @@ class PurchaseOrderStats extends BaseWidget
 
     private function getTrendsByStatus(bool $status): array
     {
-        return $this->getTrends('created_at', function ($query) use ($status) {
+        $dateColumn = $status ? 'confirmed_at' : 'created_at';
+        return $this->getTrends($dateColumn, function ($query) use ($status) {
             return $query->where('is_confirmed', $status);
         });
     }
