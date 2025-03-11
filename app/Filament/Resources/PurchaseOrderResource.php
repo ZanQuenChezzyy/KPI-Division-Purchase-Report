@@ -70,14 +70,18 @@ class PurchaseOrderResource extends Resource
                             ->placeholder('Select Purchase Requisition')
                             ->relationship('purchaseRequisition', 'id', function (Builder $query) {
                                 $search = request('search'); // Ambil nilai pencarian dari request
-
                                 $query->where('status', 2)
-                                    ->where(function ($query) use ($search) {
-                                        $query->where('number', 'like', "%{$search}%") // Cari berdasarkan nomor
-                                            ->orWhereHas('userDepartment.user', function ($query) use ($search) {
-                                                $query->where('name', 'like', "%{$search}%"); // Cari berdasarkan nama user
+                                    ->whereNotIn('id', function ($subQuery) {
+                                    $subQuery->select('purchase_requisition_id')->from('purchase_orders');
+                                })
+                                    ->when(!empty($search), function ($query) use ($search) {
+                                    $query->where(function ($q) use ($search) {
+                                        $q->where('number', 'like', "%{$search}%")
+                                            ->orWhereHas('userDepartment.user', function ($q) use ($search) {
+                                                $q->where('name', 'like', "%{$search}%");
                                             });
                                     });
+                                });
                             })
                             ->native(false)
                             ->preload()
@@ -170,7 +174,7 @@ class PurchaseOrderResource extends Resource
                                     ->afterStateUpdated(function ($state, Set $set, Get $get) {
                                         if ($state) { // Cek jika user mencoba mengaktifkan toggle
                                             $purchaseOrderId = $get('id'); // Ambil ID Purchase Order
-
+                            
                                             // Cek apakah ada item yang belum berstatus '2' (Received)
                                             $hasUnreceivedItems = \App\Models\PurchaseOrderLine::where('purchase_order_id', $purchaseOrderId)
                                                 ->where('status', '!=', 2)
@@ -205,7 +209,7 @@ class PurchaseOrderResource extends Resource
                                         // Cek jika user mencoba mengaktifkan toggle
                                         if ($state) {
                                             $isReceived = $get('is_received'); // Ambil status is_received
-
+                            
                                             // Jika belum received, tolak aktivasi
                                             if (!$isReceived) {
                                                 $set('is_closed', false); // Kembalikan toggle ke off
@@ -297,13 +301,9 @@ class PurchaseOrderResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->Groups([
-                GroupingGroup::make('purchaseRequisition.department.name')
-                    ->label('Department Name'),
-                GroupingGroup::make('vendor.name')
-                    ->label('Vendor Name'),
-            ])
-            ->defaultGroup('purchaseRequisition.department.name')
+            ->modifyQueryUsing(function ($query) {
+                $query->orderByDesc('created_at');
+            })
             ->columns([
                 TextColumn::make('purchaseRequisition.number')
                     ->label('Number')

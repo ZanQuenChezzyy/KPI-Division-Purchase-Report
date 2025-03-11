@@ -38,10 +38,36 @@ class UserRolePermissionSeeder extends Seeder
             'Read Users',
             'Update Users',
             'Delete Users',
-            'Create Data',
-            'Read Data',
-            'Update Data',
-            'Delete Data',
+
+            'Create Purchase Requisitions',
+            'Read Purchase Requisitions',
+            'Update Purchase Requisitions',
+            'Delete Purchase Requisitions',
+
+            'Create Purchase Orders',
+            'Read Purchase Orders',
+            'Update Purchase Orders',
+            'Delete Purchase Orders',
+
+            'Create Departments',
+            'Read Departments',
+            'Update Departments',
+            'Delete Departments',
+
+            'Create Vendors',
+            'Read Vendors',
+            'Update Vendors',
+            'Delete Vendors',
+
+            'Create Items',
+            'Read Items',
+            'Update Items',
+            'Delete Items',
+
+            'Create Purchase Types',
+            'Read Purchase Types',
+            'Update Purchase Types',
+            'Delete Purchase Types',
         ];
 
         // Create permissions
@@ -51,8 +77,47 @@ class UserRolePermissionSeeder extends Seeder
 
         // Create roles
         $roles = [
-            'Administrator' => ['Create Users', 'Read Users', 'Update Users', 'Delete Users', 'Create Data', 'Read Data', 'Update Data', 'Delete Data'],
-            'User' => ['Create Data', 'Read Data', 'Update Data', 'Delete Data'],
+            'Administrator' => [
+                'Create Users',
+                'Read Users',
+                'Update Users',
+                'Delete Users',
+
+                'Create Purchase Requisitions',
+                'Read Purchase Requisitions',
+                'Update Purchase Requisitions',
+                'Delete Purchase Requisitions',
+
+                'Create Purchase Orders',
+                'Read Purchase Orders',
+                'Update Purchase Orders',
+                'Delete Purchase Orders',
+
+                'Create Departments',
+                'Read Departments',
+                'Update Departments',
+                'Delete Departments',
+
+                'Create Vendors',
+                'Read Vendors',
+                'Update Vendors',
+                'Delete Vendors',
+
+                'Create Items',
+                'Read Items',
+                'Update Items',
+                'Delete Items',
+
+                'Create Purchase Types',
+                'Read Purchase Types',
+                'Update Purchase Types',
+                'Delete Purchase Types',
+            ],
+            'User' => [
+                'Create Purchase Requisitions',
+                'Read Purchase Requisitions',
+                'Update Purchase Requisitions',
+            ],
         ];
 
         foreach ($roles as $roleName => $rolePermissions) {

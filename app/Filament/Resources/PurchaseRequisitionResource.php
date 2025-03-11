@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\PurchaseRequisitionResource\Pages;
 use App\Filament\Resources\PurchaseRequisitionResource\RelationManagers;
+use Illuminate\Support\Facades\Auth;
 use App\Models\PurchaseRequisition;
 use Filament\Forms;
 use Filament\Forms\Components\DatePicker;
@@ -146,6 +147,7 @@ class PurchaseRequisitionResource extends Resource
                                     ->searchable()
                                     ->reactive()
                                     ->columnSpanFull()
+                                    ->dehydratedWhenHidden()
                                     ->live()
                                     ->afterStateUpdated(function ($state, callable $set) {
                                         if ($state === '2') {
@@ -177,7 +179,8 @@ class PurchaseRequisitionResource extends Resource
                                     ->dehydratedWhenHidden()
                                     ->hidden(fn(Get $get): bool => $get('status') !== '1' && !$get('cancelled_at') || $get('status') === '0' || $get('status') === null),
                             ])->columns(2)
-                            ->columnSpan(1),
+                            ->columnSpan(1)
+                            ->hidden(Auth::user()->hasRole('User')),
                         Section::make('Purchase Items')
                             ->schema([
                                 Repeater::make('Items')
@@ -404,7 +407,22 @@ class PurchaseRequisitionResource extends Resource
                         default => 'Unknown',
                     }),
             ])
-            ->defaultGroup('Department.name')
+            ->modifyQueryUsing(function ($query) {
+                $user = auth()->user();
+
+                // Jika user bukan Administrator, filter berdasarkan departemennya
+                if (!$user->hasRole('Administrator')) {
+                    $departmentId = $user->userDepartments()->first()?->department_id;
+
+                    if ($departmentId) {
+                        $query->where('department_id', $departmentId);
+                    }
+                }
+
+                // Order by status terbaru duluan, lalu berdasarkan tanggal dibuat
+                $query->orderByRaw("FIELD(status, 0, 1, 2)")->orderByDesc('created_at');
+            })
+            ->defaultGroup(Auth::user()->hasRole('User') ? 'Department.name' : null)
             ->columns([
                 TextColumn::make('number')
                     ->label('Number')

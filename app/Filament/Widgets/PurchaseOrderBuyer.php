@@ -2,36 +2,39 @@
 
 namespace App\Filament\Widgets;
 
-use App\Models\PurchaseRequisition;
+use App\Models\PurchaseOrder;
 use Filament\Widgets\ChartWidget;
 
-class PurchaseRequisitionBuyer extends ChartWidget
+class PurchaseOrderBuyer extends ChartWidget
 {
-    protected static ?string $heading = 'Purchase Requisition by Buyer';
+    protected static ?string $heading = 'Purchase Order by Buyer';
+
     public function getDescription(): ?string
     {
-        return 'Displays the total number of purchase requisitions submitted by each buyer, offering insights into purchasing patterns and procurement trends.';
+        return 'Displays the total number of purchase orders submitted by each buyer, providing insights into procurement trends and purchasing patterns.';
     }
+
     protected int|string|array $columnSpan = '2';
     protected static ?int $sort = 9;
     protected static ?string $maxHeight = '325px';
 
     protected function getData(): array
     {
-        // Ambil data buyer dan jumlah PR yang mereka buat
-        $buyers = PurchaseRequisition::query()
-            ->join('users', 'purchase_requisitions.requested_by', '=', 'users.id')
-            ->selectRaw('users.name as buyer_name, COUNT(purchase_requisitions.id) as total_pr')
+        // Ambil data buyer dan jumlah PO yang mereka buat
+        $buyers = PurchaseOrder::query()
+            ->join('user_departments', 'purchase_orders.buyer', '=', 'user_departments.id')
+            ->join('users', 'user_departments.user_id', '=', 'users.id') // Join ke tabel users
+            ->selectRaw('users.name as buyer_name, COUNT(purchase_orders.id) as total_po')
             ->groupBy('users.id', 'users.name')
-            ->orderByDesc('total_pr')
+            ->orderByDesc('total_po')
             ->get();
 
         return [
             'labels' => $buyers->pluck('buyer_name')->toArray(), // Nama buyer sebagai label
             'datasets' => [
                 [
-                    'label' => 'Total PR',
-                    'data' => $buyers->pluck('total_pr')->toArray(), // Jumlah PR tiap buyer
+                    'label' => 'Total PO',
+                    'data' => $buyers->pluck('total_po')->toArray(), // Jumlah PO tiap buyer
                     'backgroundColor' => $this->generateColors($buyers->count()), // Warna untuk setiap buyer
                 ],
             ],
