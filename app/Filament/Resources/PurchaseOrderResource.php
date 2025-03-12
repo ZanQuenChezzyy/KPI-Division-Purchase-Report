@@ -116,15 +116,15 @@ class PurchaseOrderResource extends Resource
                         Select::make('buyer')
                             ->label('Buyer')
                             ->placeholder('Select Buyer Name')
-                            ->relationship('userDepartment.user', 'name')
+                            ->relationship('userDepartment', 'id') // Ambil langsung dari UserDepartment
                             ->native(false)
                             ->preload()
                             ->searchable()
                             ->getOptionLabelFromRecordUsing(function (Model $record) {
-                                $name = $record->name;
-                                $department = optional($record->userDepartments->first()->department)->name ?? 'No Department';
+                                $user = optional($record->user)->name ?? 'No User';
+                                $department = optional($record->department)->name ?? 'No Department';
 
-                                return "$name - $department";
+                                return "$user - $department";
                             })
                             ->required(),
 
