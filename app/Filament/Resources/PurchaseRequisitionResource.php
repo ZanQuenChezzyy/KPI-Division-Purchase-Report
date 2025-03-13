@@ -412,6 +412,7 @@ class PurchaseRequisitionResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->deferLoading()
             ->groups([
                 GroupingGroup::make('Department.name')
                     ->label('Department'),

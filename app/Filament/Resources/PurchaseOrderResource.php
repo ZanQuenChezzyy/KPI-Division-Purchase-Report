@@ -310,6 +310,7 @@ class PurchaseOrderResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->deferLoading()
             ->modifyQueryUsing(function ($query) {
                 $query->orderByDesc('created_at');
             })
