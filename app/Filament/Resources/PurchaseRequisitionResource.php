@@ -49,7 +49,23 @@ class PurchaseRequisitionResource extends Resource
     protected static ?int $navigationSort = 2;
     public static function getNavigationBadge(): ?string
     {
-        return static::getModel()::count();
+        $user = Auth::user();
+
+        // Jika user memiliki role Administrator, hitung semua requisition
+        if ($user->hasRole('Administrator')) {
+            return static::getModel()::count();
+        }
+
+        // Ambil semua ID departemen yang terkait dengan user
+        $departmentIds = $user->departments->pluck('id');
+
+        // Jika user tidak memiliki departemen, return 0
+        if ($departmentIds->isEmpty()) {
+            return '0';
+        }
+
+        // Hitung requisition hanya dari departemen user yang sedang login
+        return static::getModel()::whereIn('department_id', $departmentIds)->count();
     }
     public static function getNavigationBadgeColor(): ?string
     {

@@ -21,7 +21,8 @@ class PurchaseRequisitionTopRequester extends BaseWidget
             ->description('A list of Requester ranked by the number of purchase Requisition they have made.')
             ->query(
                 PurchaseRequisition::query()
-                    ->join('users', 'purchase_requisitions.requested_by', '=', 'users.id')
+                    ->join('user_departments', 'purchase_requisitions.requested_by', '=', 'user_departments.id')
+                    ->join('users', 'user_departments.user_id', '=', 'users.id')
                     ->selectRaw('users.id, users.name as requester_name, COUNT(purchase_requisitions.id) as total_requests')
                     ->groupBy('users.id', 'users.name')
                     ->orderByDesc('total_requests')

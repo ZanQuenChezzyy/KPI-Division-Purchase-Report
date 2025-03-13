@@ -68,21 +68,31 @@ class PurchaseOrderResource extends Resource
                         Select::make('purchase_requisition_id')
                             ->label('Purchase Requisition')
                             ->placeholder('Select Purchase Requisition')
-                            ->relationship('purchaseRequisition', 'id', function (Builder $query) {
-                                $search = request('search'); // Ambil nilai pencarian dari request
-                                $query->where('status', 2)
-                                    ->whereNotIn('id', function ($subQuery) {
-                                    $subQuery->select('purchase_requisition_id')->from('purchase_orders');
-                                })
-                                    ->when(!empty($search), function ($query) use ($search) {
-                                    $query->where(function ($q) use ($search) {
-                                        $q->where('number', 'like', "%{$search}%")
-                                            ->orWhereHas('userDepartment.user', function ($q) use ($search) {
-                                                $q->where('name', 'like', "%{$search}%");
+                            ->relationship(
+                                'purchaseRequisition',
+                                'id',
+                                function (Builder $query, ?PurchaseOrder $record) {
+                                    if ($record === null) {
+                                        // Saat CREATE, tampilkan hanya PR yang belum ada di PO
+                                        $search = request('search'); // Ambil nilai pencarian dari request
+                                        $query->where('status', 2)
+                                            ->whereNotIn('id', function ($subQuery) {
+                                            $subQuery->select('purchase_requisition_id')->from('purchase_orders');
+                                        })
+                                            ->when(!empty($search), function ($query) use ($search) {
+                                            $query->where(function ($q) use ($search) {
+                                                $q->where('number', 'like', "%{$search}%")
+                                                    ->orWhereHas('userDepartment.user', function ($q) use ($search) {
+                                                        $q->where('name', 'like', "%{$search}%");
+                                                    });
                                             });
-                                    });
-                                });
-                            })
+                                        });
+                                    } else {
+                                        // Saat EDIT, hanya filter status = 2 agar data tetap tampil
+                                        $query->where('status', 2);
+                                    }
+                                }
+                            )
                             ->native(false)
                             ->preload()
                             ->columnSpanFull()
@@ -174,7 +184,7 @@ class PurchaseOrderResource extends Resource
                                     ->afterStateUpdated(function ($state, Set $set, Get $get) {
                                         if ($state) { // Cek jika user mencoba mengaktifkan toggle
                                             $purchaseOrderId = $get('id'); // Ambil ID Purchase Order
-                            
+
                                             // Cek apakah ada item yang belum berstatus '2' (Received)
                                             $hasUnreceivedItems = \App\Models\PurchaseOrderLine::where('purchase_order_id', $purchaseOrderId)
                                                 ->where('status', '!=', 2)
@@ -209,7 +219,7 @@ class PurchaseOrderResource extends Resource
                                         // Cek jika user mencoba mengaktifkan toggle
                                         if ($state) {
                                             $isReceived = $get('is_received'); // Ambil status is_received
-                            
+
                                             // Jika belum received, tolak aktivasi
                                             if (!$isReceived) {
                                                 $set('is_closed', false); // Kembalikan toggle ke off

@@ -18,11 +18,12 @@ class PurchaseRequisitionRequester extends ChartWidget
 
     protected function getData(): array
     {
+        // Ambil data requested dan jumlah PR yang mereka buat
         $data = PurchaseRequisition::query()
             ->join('user_departments', 'purchase_requisitions.requested_by', '=', 'user_departments.id')
             ->join('users', 'user_departments.user_id', '=', 'users.id')
-            ->selectRaw('users.name as requester_name, COUNT(purchase_requisitions.id) as total_requests')
-            ->groupBy('users.name')
+            ->selectRaw('users.id as user_id, users.name as requester_name, COUNT(purchase_requisitions.id) as total_requests')
+            ->groupBy('users.id', 'users.name')
             ->orderByDesc('total_requests')
             ->get();
 
