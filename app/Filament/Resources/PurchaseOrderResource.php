@@ -138,11 +138,10 @@ class PurchaseOrderResource extends Resource
                             })
                             ->required(),
 
-                        TextInput::make('eta')
+                        DatePicker::make('eta')
                             ->label('ETA')
                             ->placeholder('Enter ETA')
-                            ->minLength(3)
-                            ->maxLength(15),
+                            ->native(false),
 
                         TextInput::make('mar_no')
                             ->label('Mar Number')
