@@ -145,7 +145,7 @@ class PurchaseOrderResource extends Resource
 
                         TextInput::make('mar_no')
                             ->label('Mar Number')
-                            ->placeholder('Enter ETA')
+                            ->placeholder('Enter Mar Number')
                             ->minLength(3)
                             ->maxLength(15),
 
