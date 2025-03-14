@@ -23,8 +23,8 @@ class Item extends Model
     }
 
     public function purchaseOrderLines(): \Illuminate\Database\Eloquent\Relations\HasMany
-{
-    return $this->hasMany(\App\Models\PurchaseOrderLine::class);
-}
+    {
+        return $this->hasMany(\App\Models\PurchaseOrderLine::class);
+    }
 
 }

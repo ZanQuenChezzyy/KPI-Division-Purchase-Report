@@ -20,6 +20,12 @@ class PurchaseRequisition extends Model
         'approved_at',
     ];
 
+    protected $casts = [
+        'requested_by' => 'integer',
+        'department_id' => 'integer',
+        // lainnya...
+    ];
+
     public function Department(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(\App\Models\Department::class, 'department_id', 'id');

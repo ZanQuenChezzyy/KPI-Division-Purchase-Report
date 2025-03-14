@@ -49,12 +49,16 @@ class PurchaseTypeResource extends Resource
     {
         return $form
             ->schema([
+                TextInput::make('id')
+                    ->label('Purchase Type ID')
+                    ->placeholder('Enter Purchase Type ID')
+                    ->numeric()
+                    ->required(),
                 TextInput::make('name')
                     ->label('Purchase Type Name')
                     ->placeholder('Enter Purchase Type Name')
                     ->minLength(3)
                     ->maxLength(45)
-                    ->columnSpanFull()
                     ->required(),
             ]);
     }

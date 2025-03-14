@@ -258,6 +258,57 @@ class PurchaseRequisitionResource extends Resource
                                                     ->autosize()
                                                     ->columnSpanFull(),
                                             ])
+                                            ->editOptionForm([
+                                                TextInput::make('name')
+                                                    ->label('Item Name')
+                                                    ->placeholder('Enter Item Name')
+                                                    ->minLength(3)
+                                                    ->maxLength(100)
+                                                    ->columnSpanFull()
+                                                    ->required(),
+
+                                                Group::make()
+                                                    ->schema([
+                                                        TextInput::make('sku')
+                                                            ->label('Stock Keeping Unit (SKU)')
+                                                            ->placeholder('Enter Stock Keeping Unit')
+                                                            ->minLength(3)
+                                                            ->maxLength(50)
+                                                            ->columnSpan(2)
+                                                            ->required(),
+
+                                                        TextInput::make('unit_price')
+                                                            ->label('Price / unit')
+                                                            ->placeholder('Enter Price')
+                                                            ->minValue(1000)
+                                                            ->minLength(4)
+                                                            ->maxLength(20)
+                                                            ->columnSpan(2)
+                                                            ->mask(RawJs::make('$money($input)'))
+                                                            ->stripCharacters(',')
+                                                            ->prefix('Rp')
+                                                            ->suffix('.00')
+                                                            ->numeric()
+                                                            ->required(),
+
+                                                        TextInput::make('unit')
+                                                            ->label('Unit')
+                                                            ->placeholder('Enter Unit')
+                                                            ->helperText('E.g., Pcs, Kg, Liter')
+                                                            ->minLength(1)
+                                                            ->maxLength(20)
+                                                            ->required(),
+                                                    ])->columns(5)
+                                                    ->columnSpanFull(),
+
+                                                Textarea::make('description')
+                                                    ->label('Description')
+                                                    ->placeholder('Enter Description')
+                                                    ->minLength(10)
+                                                    ->rows(3)
+                                                    ->autosize()
+                                                    ->columnSpanFull(),
+                                            ])
                                             ->native(false)
                                             ->preload()
                                             ->searchable()
@@ -273,7 +324,7 @@ class PurchaseRequisitionResource extends Resource
                                                 $formattedTotalPrice = number_format($totalPrice, 0, '.', ',');
                                                 $set('total_price', $formattedTotalPrice);
                                             })
-                                            ->columnSpan(3)
+                                            ->columnSpanFull()
                                             ->required(),
                                         TextInput::make('unit_price')
                                             ->label('Unit Price')
@@ -295,14 +346,17 @@ class PurchaseRequisitionResource extends Resource
                                                 $formattedTotalPrice = number_format($totalPrice, 0, '.', ',');
                                                 $set('total_price', $formattedTotalPrice);
                                             })
-                                            ->columnSpan(1)
+                                            ->columnSpan(2)
                                             ->required(),
                                         TextInput::make('total_price')
                                             ->label('Estimated Total Price')
                                             ->placeholder('Price')
                                             ->mask(RawJs::make('$money($input)'))
                                             ->stripCharacters(',')
-                                            ->columnSpan(2)
+                                            ->prefix('Rp')
+                                            ->suffix('.00')
+                                            ->columnSpan(4)
+                                            ->hint('Otomatis Terisi')
                                             ->disabled()
                                             ->numeric()
                                             ->dehydrated(),

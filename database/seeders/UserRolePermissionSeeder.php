@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Department;
+use App\Models\PurchaseType;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -25,11 +26,28 @@ class UserRolePermissionSeeder extends Seeder
             'Marketing',
         ];
 
+        $purchaseTypes = [
+            ['id' => 0, 'name' => 'None'],
+            ['id' => 1, 'name' => 'Direct Purchase'],
+            ['id' => 2, 'name' => 'Indirect Purchase'],
+            ['id' => 3, 'name' => 'Stock Item'],
+            ['id' => 4, 'name' => 'Shutdown Plant'],
+            ['id' => 5, 'name' => 'Global Purchase'],
+            ['id' => 6, 'name' => 'Outsourcing'],
+        ];
+
         $departmentIds = [];
 
         foreach ($departments as $deptName) {
             $department = Department::firstOrCreate(['name' => $deptName]);
             $departmentIds[$deptName] = $department->id;
+        }
+
+        foreach ($purchaseTypes as $purchaseType) {
+            PurchaseType::firstOrCreate(
+                ['id' => $purchaseType['id']], // Kondisi untuk menemukan data yang ada
+                ['name' => $purchaseType['name']] // Data yang akan diupdate atau dibuat
+            );
         }
 
         // Permissions for users
@@ -162,6 +180,6 @@ class UserRolePermissionSeeder extends Seeder
             }
         }
 
-        $this->command->info('Roles, Permissions, Departments, and Users have been created successfully!');
+        $this->command->info('Roles, Permissions, Departments, Purchase Types and Users have been created successfully!');
     }
 }
