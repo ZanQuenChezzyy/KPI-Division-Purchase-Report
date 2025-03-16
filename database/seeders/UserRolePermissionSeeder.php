@@ -44,9 +44,9 @@ class UserRolePermissionSeeder extends Seeder
         }
 
         foreach ($purchaseTypes as $purchaseType) {
-            PurchaseType::firstOrCreate(
-                ['id' => $purchaseType['id']], // Kondisi untuk menemukan data yang ada
-                ['name' => $purchaseType['name']] // Data yang akan diupdate atau dibuat
+            PurchaseType::updateOrCreate(
+                ['id' => $purchaseType['id']], // Mencari berdasarkan ID
+                ['name' => $purchaseType['name']] // Jika ditemukan, update name
             );
         }
 

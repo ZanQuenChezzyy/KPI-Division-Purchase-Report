@@ -9,9 +9,10 @@ class PurchaseType extends Model
 {
     use HasFactory;
 
-    protected $fillable = [
-        'name',
-    ];
+    public $incrementing = false; // Nonaktifkan auto-increment pada ID
+    protected $keyType = 'int'; // Pastikan ID tetap integer
+
+    protected $fillable = ['id', 'name'];
 
     public function purchaseRequisitions(): \Illuminate\Database\Eloquent\Relations\HasMany
     {

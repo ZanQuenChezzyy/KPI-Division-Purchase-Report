@@ -1,6 +1,9 @@
 <?php
 
 namespace App\Filament\Resources;
+use Filament\Actions\Exports\Enums\ExportFormat;
+use App\Filament\Exports\PurchaseRequisitionExporter;
+use Filament\Tables\Actions\ExportBulkAction;
 
 use App\Filament\Resources\PurchaseRequisitionResource\Pages;
 use App\Filament\Resources\PurchaseRequisitionResource\RelationManagers;
@@ -312,7 +315,7 @@ class PurchaseRequisitionResource extends Resource
                                             ->native(false)
                                             ->preload()
                                             ->searchable()
-                                            ->reactive()
+                                            ->live(debounce: 800)
                                             ->afterStateUpdated(function ($state, callable $get, callable $set) {
                                                 $item = \App\Models\Item::find($state);
                                                 $unitPrice = (float) ($item?->unit_price ?? 0);
@@ -328,8 +331,8 @@ class PurchaseRequisitionResource extends Resource
                                             ->required(),
                                         TextInput::make('unit_price')
                                             ->label('Unit Price')
-                                            ->hidden()
                                             ->dehydratedWhenHidden()
+                                            ->hidden()
                                             ->numeric(),
                                         TextInput::make('qty')
                                             ->label('Quantity')
@@ -467,6 +470,7 @@ class PurchaseRequisitionResource extends Resource
     {
         return $table
             ->deferLoading()
+            ->poll('10s')
             ->groups([
                 GroupingGroup::make('Department.name')
                     ->label('Department'),
@@ -594,6 +598,14 @@ class PurchaseRequisitionResource extends Resource
             ->bulkActions([
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),
+                    ExportBulkAction::make()
+                        ->label('Export Selected')
+                        ->icon('heroicon-s-document-arrow-up')
+                        ->exporter(PurchaseRequisitionExporter::class)
+                        ->formats([
+                            ExportFormat::Xlsx,
+                            ExportFormat::Csv,
+                        ]),
                 ]),
             ]);
     }

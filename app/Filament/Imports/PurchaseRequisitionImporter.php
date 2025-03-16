@@ -55,112 +55,23 @@ class PurchaseRequisitionImporter extends Importer
                     'status' => $this->data['status'] ?? $existingPR->status,
                     'approved_at' => $this->data['approved_at'] ?? $existingPR->approved_at,
                     'cancelled_at' => $this->data['cancelled_at'] ?? $existingPR->cancelled_at,
-                    // Tambahkan kolom lain yang perlu diupdate
                 ]);
 
                 Log::info('Purchase Requisition berhasil diperbarui:', ['id' => $existingPR->id]);
 
-                // Proses items jika ada perubahan
+                // **Pastikan items terkait dibuat atau diperbarui**
                 if (!empty($this->data['items'])) {
-                    $itemsString = $this->data['items'];
-
-                    // Menghapus escape karakter berlebih
-                    $itemsString = stripslashes($itemsString);  // Menghapus backslashes yang berlebihan
-
-                    // Parsing JSON
-                    $items = json_decode($itemsString, true);
-
-                    if (json_last_error() !== JSON_ERROR_NONE) {
-                        Log::error('JSON Decode Error:', ['error' => json_last_error_msg()]);
-                    } else {
-                        // Log untuk melihat hasil decode JSON
-                        Log::info('Items berhasil di-decode:', ['items' => $items]);
-
-                        // Menambahkan qty default jika tidak ada
-                        foreach ($items as &$item) {
-                            if (!isset($item['qty'])) {
-                                $item['qty'] = 1; // Assign default qty jika tidak ada
-                            }
-
-                            // Validasi unit_price
-                            if (!isset($item['unit_price']) || !is_numeric($item['unit_price'])) {
-                                $item['unit_price'] = 0; // Assign default unit_price jika tidak ada atau tidak valid
-                            }
-                        }
-
-                        // Log setelah menambahkan qty dan unit_price default
-                        Log::info('Items dengan qty dan unit_price default:', ['items' => $items]);
-                    }
-
-                    // Periksa apakah hasil decode adalah array
-                    if (is_array($items)) {
-                        foreach ($items as $itemData) {
-                            $itemName = trim($itemData['name']);
-                            $itemQty = $itemData['qty'];
-                            $itemUnitPrice = $itemData['unit_price'];
-
-                            // Cek apakah item sudah ada di tabel items
-                            $existingItem = Item::firstOrCreate(
-                                ['name' => $itemName],
-                                [
-                                    'sku' => str_pad(mt_rand(0, 99999), 5, '0', STR_PAD_LEFT),
-                                    'unit' => 'unit',
-                                    'unit_price' => $itemUnitPrice,
-                                    'description' => $this->data['description'],
-                                ]
-                            );
-
-                            Log::info('Item ditemukan atau dibuat:', ['id' => $existingItem->id, 'name' => $existingItem->name]);
-
-                            // Simpan ke purchase_requisition_items jika belum ada
-                            $existingPRItem = PurchaseRequisitionItem::where([
-                                'purchase_requisition_id' => $existingPR->id,
-                                'item_id' => $existingItem->id,
-                            ])->first();
-
-                            if (!$existingPRItem) {
-                                PurchaseRequisitionItem::create([
-                                    'purchase_requisition_id' => $existingPR->id,
-                                    'item_id' => $existingItem->id,
-                                    'qty' => $itemQty,
-                                    'unit_price' => $itemUnitPrice,
-                                    'total_price' => $itemQty * $itemUnitPrice,
-                                ]);
-
-                                Log::info('Item berhasil ditambahkan ke Purchase Requisition:', [
-                                    'purchase_requisition_id' => $existingPR->id,
-                                    'item_name' => $existingItem->name,
-                                ]);
-                            } else {
-                                Log::info('Item sudah ada di Purchase Requisition:', [
-                                    'purchase_requisition_id' => $existingPR->id,
-                                    'item_name' => $existingItem->name,
-                                ]);
-                            }
-                        }
-                    } else {
-                        Log::error('Format data items tidak valid:', ['items' => $this->data['items']]);
-                        Log::info('Format data items:', ['items' => $this->data['items']]);
-                    }
+                    $this->syncItemsWithPurchaseRequisition($existingPR, $this->data['items']);
                 }
 
-                return $existingPR; // Kembalikan PR yang sudah diperbarui
+                return $existingPR; // Kembalikan PR yang diperbarui
             }
 
             // Jika tidak ada, buat Purchase Requisition baru
             $requestedByName = trim($this->data['requested_by']);
             $departmentName = trim($this->data['department_id']);
+            $purchaseTypeId = (int) current(explode('.', trim($this->data['purchase_type_id'])));
 
-            // Ekstrak ID dari purchase_type_id
-            $purchaseTypeIdRaw = trim($this->data['purchase_type_id']);
-            $purchaseTypeId = (int) current(explode('.', $purchaseTypeIdRaw));
-
-            Log::info('Ekstrak Purchase Type ID:', [
-                'raw' => $purchaseTypeIdRaw,
-                'extracted' => $purchaseTypeId
-            ]);
-
-            // Format created_at
             $createdAt = isset($this->data['created_at'])
                 ? Carbon::parse($this->data['created_at'])->format('Y-m-d H:i:s')
                 : now();
@@ -175,19 +86,21 @@ class PurchaseRequisitionImporter extends Importer
             );
             $user->assignRole('User');
 
-            Log::info('User ditemukan atau dibuat:', ['id' => $user->id, 'name' => $user->name]);
-
             // Cari atau buat department
             $department = Department::firstOrCreate(['name' => $departmentName]);
 
-            Log::info('Department ditemukan atau dibuat:', ['id' => $department->id, 'name' => $department->name]);
+            // Cari atau buat user_department
+            $userDepartment = UserDepartment::firstOrCreate([
+                'user_id' => $user->id,
+                'department_id' => $department->id,
+            ]);
 
             // Simpan Purchase Requisition baru
             $purchaseRequisition = PurchaseRequisition::create([
                 'number' => $this->data['number'],
                 'purchase_type_id' => $purchaseTypeId,
                 'description' => $this->data['description'],
-                'requested_by' => $user->id,
+                'requested_by' => $userDepartment->id,
                 'department_id' => $department->id,
                 'status' => $this->data['status'] ?? 0,
                 'created_at' => $createdAt,
@@ -197,6 +110,11 @@ class PurchaseRequisitionImporter extends Importer
 
             Log::info('Purchase Requisition berhasil dibuat:', ['id' => $purchaseRequisition->id]);
 
+            // **Pastikan items terkait dibuat atau diperbarui**
+            if (!empty($this->data['items'])) {
+                $this->syncItemsWithPurchaseRequisition($purchaseRequisition, $this->data['items']);
+            }
+
             return $purchaseRequisition; // Kembalikan PR baru yang dibuat
         } catch (\Exception $e) {
             Log::error('Error saat import:', [
@@ -205,6 +123,86 @@ class PurchaseRequisitionImporter extends Importer
             ]);
             return null;
         }
+    }
+
+    private function syncItemsWithPurchaseRequisition(PurchaseRequisition $purchaseRequisition, string $itemsJson): void
+    {
+        try {
+            // Menghapus karakter escape yang berlebihan
+            $itemsJson = stripslashes($itemsJson);
+
+            // Periksa apakah itemsJson adalah array JSON atau string biasa
+            if ($this->isJsonArray($itemsJson)) {
+                $items = json_decode($itemsJson, true);
+            } else {
+                // Jika hanya string biasa, ubah menjadi array JSON dengan qty = 1 & unit_price = 0
+                $items = [['name' => trim($itemsJson), 'qty' => 1, 'unit_price' => 0]];
+            }
+
+            // Periksa apakah JSON valid setelah decode
+            if (!is_array($items)) {
+                Log::error('JSON Decode Error:', ['error' => json_last_error_msg(), 'itemsJson' => $itemsJson]);
+                return;
+            }
+
+            Log::info('Items berhasil di-decode:', ['items' => $items]);
+
+            foreach ($items as $itemData) {
+                $itemName = trim($itemData['name']);
+                $itemQty = $itemData['qty'] ?? 1;
+                $itemUnitPrice = isset($itemData['unit_price']) && is_numeric($itemData['unit_price'])
+                    ? $itemData['unit_price']
+                    : 0;
+
+                // Cek apakah item sudah ada di tabel items
+                $existingItem = Item::firstOrCreate(
+                    ['name' => $itemName],
+                    [
+                        'sku' => str_pad(mt_rand(0, 99999), 5, '0', STR_PAD_LEFT),
+                        'unit' => 'unit',
+                        'unit_price' => $itemUnitPrice,
+                        'description' => $purchaseRequisition->description,
+                    ]
+                );
+
+                Log::info('Item ditemukan atau dibuat:', ['id' => $existingItem->id, 'name' => $existingItem->name]);
+
+                // Simpan atau perbarui di purchase_requisition_items
+                $existingPRItem = PurchaseRequisitionItem::updateOrCreate(
+                    [
+                        'purchase_requisition_id' => $purchaseRequisition->id,
+                        'item_id' => $existingItem->id,
+                    ],
+                    [
+                        'qty' => $itemQty,
+                        'unit_price' => $itemUnitPrice,
+                        'total_price' => $itemQty * $itemUnitPrice,
+                    ]
+                );
+
+                Log::info('Item tersinkronisasi dengan PR:', [
+                    'purchase_requisition_id' => $purchaseRequisition->id,
+                    'item_id' => $existingItem->id,
+                    'qty' => $itemQty,
+                    'unit_price' => $itemUnitPrice,
+                    'total_price' => $itemQty * $itemUnitPrice,
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Error saat sinkronisasi items dengan PR:', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+        }
+    }
+
+    /**
+     * Fungsi untuk mengecek apakah sebuah string adalah JSON array yang valid.
+     */
+    private function isJsonArray($string)
+    {
+        json_decode($string, true);
+        return json_last_error() === JSON_ERROR_NONE && str_starts_with(trim($string), '[');
     }
 
     public static function getCompletedNotificationBody(Import $import): string
