@@ -13,7 +13,9 @@ class ListPurchaseOrders extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make(),
+            Actions\CreateAction::make()
+                ->label('Create Purchase Order')
+                ->icon('heroicon-m-plus-circle'),
         ];
     }
 }
