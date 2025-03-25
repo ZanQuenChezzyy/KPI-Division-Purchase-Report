@@ -7,8 +7,11 @@ use App\Models\Item;
 use App\Models\PurchaseRequisition;
 use App\Models\PurchaseRequisitionItem;
 use App\Models\purchase_type_id;
+use App\Models\PurchaseOrder;
+use App\Models\PurchaseOrderLine;
 use App\Models\User;
 use App\Models\UserDepartment;
+use App\Models\Vendor;
 use Carbon\Carbon;
 use Filament\Actions\Imports\ImportColumn;
 use Filament\Actions\Imports\Importer;
@@ -122,9 +125,9 @@ class PurchaseRequisitionImporter extends Importer
             }
 
             // Jika status PR = 1, buat Purchase Order
-        if ($purchaseRequisition->status == 1) {
-            $this->createPurchaseOrderFromRequisition($purchaseRequisition);
-        }
+            if ($purchaseRequisition->status == 1) {
+                $this->createPurchaseOrderFromRequisition($purchaseRequisition);
+            }
 
             return $purchaseRequisition;
         } catch (\Exception $e) {
@@ -224,77 +227,92 @@ class PurchaseRequisitionImporter extends Importer
     }
 
     private function createPurchaseOrderFromRequisition(PurchaseRequisition $purchaseRequisition)
-{
-    try {
-        Log::info('Membuat Purchase Order untuk PR:', ['pr_id' => $purchaseRequisition->id]);
+    {
+        try {
+            Log::info('Membuat Purchase Order untuk PR:', ['pr_id' => $purchaseRequisition->id]);
 
-        // Ambil nama vendor dan buyer dari data PR (pastikan kolom ini ada di CSV)
-        $vendorName = trim($this->data['vendor'] ?? '');
-        $buyerName = trim($this->data['buyer'] ?? '');
-        $departmentName = trim($this->data['department_id']);
-        
-        // Cari atau buat vendor
-        $vendor = !empty($vendorName) ? Vendor::firstOrCreate(['name' => $vendorName]) : null;
-        $department = Department::firstOrCreate(['name' => $departmentName]);
+            // Ambil nama vendor dan buyer dari data PR (pastikan kolom ini ada di CSV)
+            $vendorName = trim($this->data['vendor'] ?? '');
+            $buyerName = trim($this->data['buyer'] ?? '');
+            $departmentName = trim($this->data['department_id']);
 
-        // Cari atau buat buyer (User)
-        if (!empty($buyerName)) {
-            $buyer = User::firstOrCreate(
-                ['name' => $buyerName],
-                [
-                    'email' => Str::slug($buyerName) . '@kpi.com',
-                    'password' => Hash::make('12345678'),
-                    'department_id' => $department->id,
-                ]
-            );
-            $buyer->assignRole('User');
-        } else {
-            $buyer = User::find($purchaseRequisition->requested_by); // Default ke requested_by jika buyer kosong
-        }
+            // Cari atau buat vendor
+            $vendor = !empty($vendorName) ? Vendor::firstOrCreate([
+                'name' => $vendorName,
+                'type' => rand(0, 1) // Menghasilkan angka 0 atau 1 secara acak
+            ]) : null;
+            $department = Department::firstOrCreate(['name' => $departmentName]);
 
-        $purchaseOrder = PurchaseOrder::create([
-            'purchase_requisition_id' => $purchaseRequisition->id,
-            'vendor_id' => $vendor ? $vendor->id : null, // Gunakan vendor yang ditemukan atau null
-            'buyer' => $buyer->id, // Set buyer berdasarkan data dari CSV atau requested_by
-            'eta' => null, // ETA bisa ditentukan nanti
-            'mar_no' => null,
-            'is_confirmed' => false,
-            'is_received' => false,
-            'is_closed' => false,
-            'confirmed_at' => null,
-            'received_at' => null,
-            'closed_at' => null,
-            'created_by' => $purchaseRequisition->requested_by,
-            'updated_by' => $purchaseRequisition->requested_by,
-        ]);
+            // Cari atau buat buyer (User)
+            if (!empty($buyerName)) {
+                $buyer = User::firstOrCreate(
+                    ['name' => $buyerName],
+                    [
+                        'email' => Str::slug($buyerName) . '@kpi.com',
+                        'password' => Hash::make('12345678'),
+                        'department_id' => $department->id,
+                    ]
+                );
+                $buyer->assignRole('User');
+            } else {
+                $buyer = User::find($purchaseRequisition->requested_by); // Default ke requested_by jika buyer kosong
+            }
 
-        Log::info('Purchase Order berhasil dibuat:', ['po_id' => $purchaseOrder->id]);
-
-        foreach ($purchaseRequisition->purchaseRequisitionItems as $prItem) {
-            $poLine = PurchaseOrderLine::create([
-                'purchase_order_id' => $purchaseOrder->id,
-                'purchase_requisition_item_id' => $prItem->id,
-                'item_id' => $prItem->item_id,
-                'qty' => $prItem->qty,
-                'unit_price' => $prItem->unit_price,
-                'total_price' => $prItem->qty * $prItem->unit_price,
-                'received_qty' => 0,
-                'status' => 'pending',
-                'description' => $prItem->Item->name,
+            $purchaseOrder = PurchaseOrder::create([
+                'purchase_requisition_id' => $purchaseRequisition->id,
+                'vendor_id' => $vendor ? $vendor->id : null, // Gunakan vendor yang ditemukan atau null
+                'buyer' => $buyer->id, // Set buyer berdasarkan data dari CSV atau requested_by
+                'eta' => null, // ETA bisa ditentukan nanti
+                'mar_no' => null,
+                'is_confirmed' => true,
+                'is_received' => false,
+                'is_closed' => false,
+                'confirmed_at' => $purchaseRequisition->created_at,
+                'received_at' => null,
+                'closed_at' => null,
+                'created_by' => $purchaseRequisition->requested_by,
+                'updated_by' => $purchaseRequisition->requested_by,
             ]);
 
-            Log::info('Purchase Order Line dibuat:', ['po_line_id' => $poLine->id]);
+            Log::info('Purchase Order berhasil dibuat:', ['po_id' => $purchaseOrder->id]);
+
+            foreach ($purchaseRequisition->purchaseRequisitionItems as $prItem) {
+                $existingPoLine = PurchaseOrderLine::where('purchase_order_id', $purchaseOrder->id)
+                    ->where('purchase_requisition_item_id', $prItem->id)
+                    ->first();
+            
+                if (!$existingPoLine) {
+                    $poLine = PurchaseOrderLine::create([
+                        'purchase_order_id' => $purchaseOrder->id,
+                        'purchase_requisition_item_id' => $prItem->id,
+                        'item_id' => $prItem->item_id,
+                        'qty' => $prItem->qty,
+                        'unit_price' => $prItem->unit_price,
+                        'total_price' => $prItem->qty * $prItem->unit_price,
+                        'received_qty' => $prItem->qty,
+                        'status' => 1,
+                        'description' => $prItem->Item->name,
+                    ]);
+            
+                    Log::info('Purchase Order Line dibuat:', ['po_line_id' => $poLine->id]);
+                } else {
+                    Log::info('Purchase Order Line sudah ada, tidak dibuat ulang.', [
+                        'po_line_id' => $existingPoLine->id,
+                        'purchase_order_id' => $purchaseOrder->id,
+                        'purchase_requisition_item_id' => $prItem->id,
+                    ]);
+                }
+            }
+
+            Log::info('Purchase Order dan Order Lines selesai dibuat.', ['po_id' => $purchaseOrder->id]);
+
+        } catch (\Exception $e) {
+            Log::error('Error saat membuat Purchase Order:', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
         }
-
-        Log::info('Purchase Order dan Order Lines selesai dibuat.', ['po_id' => $purchaseOrder->id]);
-
-    } catch (\Exception $e) {
-        Log::error('Error saat membuat Purchase Order:', [
-            'message' => $e->getMessage(),
-            'trace' => $e->getTraceAsString(),
-        ]);
     }
-}
 
 
     private function isJsonArray($string)

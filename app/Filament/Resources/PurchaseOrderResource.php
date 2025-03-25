@@ -362,11 +362,16 @@ class PurchaseOrderResource extends Resource
 
                 TextColumn::make('vendor.name')
                     ->label('Vendor')
-                    ->description(fn(PurchaseOrder $record): string => match ($record->vendor->type) {
-                        0 => 'International',
-                        1 => 'Domestic',
-                        default => 'Unknown',
-                    }),
+                    ->default('No Vendor')
+                    ->description(fn(PurchaseOrder $record): string => 
+                        isset($record->vendor) 
+                            ? match ($record->vendor->type) {
+                                0 => 'International',
+                                1 => 'Domestic',
+                                default => 'Unknown',
+                            }
+                            : 'No Type' 
+                    ),
 
                 TextColumn::make('user.name')
                     ->label('Buyer')
