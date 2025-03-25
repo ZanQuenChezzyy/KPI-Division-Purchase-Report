@@ -23,14 +23,14 @@ class ListPurchaseRequisitions extends ListRecords
                 ->label('Import')
                 ->icon('heroicon-s-document-arrow-down')
                 ->importer(PurchaseRequisitionImporter::class),
-            ExportAction::make()
-                ->exporter(PurchaseRequisitionExporter::class)
-                ->label('Export')
-                ->icon('heroicon-s-document-arrow-up')
-                ->formats([
-                    ExportFormat::Xlsx,
-                    ExportFormat::Csv,
-                ]),
+            // ExportAction::make()
+            //     ->exporter(PurchaseRequisitionExporter::class)
+            //     ->label('Export')
+            //     ->icon('heroicon-s-document-arrow-up')
+            //     ->formats([
+            //         ExportFormat::Xlsx,
+            //         ExportFormat::Csv,
+            //     ]),
             Actions\CreateAction::make()
                 ->label('Create Purchase Requisition')
                 ->icon('heroicon-s-plus-circle'),
