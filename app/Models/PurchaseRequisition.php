@@ -18,6 +18,7 @@ class PurchaseRequisition extends Model
         'status',
         'cancelled_at',
         'approved_at',
+        'created_at',
     ];
 
     public function Department(): \Illuminate\Database\Eloquent\Relations\BelongsTo

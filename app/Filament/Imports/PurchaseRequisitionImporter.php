@@ -51,8 +51,8 @@ class PurchaseRequisitionImporter extends Importer
                 $existingPR->update([
                     'description' => $this->data['description'] ?? $existingPR->description,
                     'status' => $this->data['status'] ?? $existingPR->status,
-                    'approved_at' => $this->data['approved_at'] ?? $existingPR->approved_at,
-                    'cancelled_at' => $this->data['cancelled_at'] ?? $existingPR->cancelled_at,
+                    'approved_at' => $this->parseDate($this->data['approved_at']),
+                    'cancelled_at' => $this->parseDate($this->data['cancelled_at']),
                 ]);
 
                 Log::info('Purchase Requisition diperbarui:', ['id' => $existingPR->id]);
@@ -67,21 +67,41 @@ class PurchaseRequisitionImporter extends Importer
             $requestedByName = trim($this->data['requested_by']);
             $departmentName = trim($this->data['department_id']);
             $purchaseTypeId = (int) current(explode('.', trim($this->data['purchase_type_id'])));
+            $department = Department::firstOrCreate(['name' => $departmentName]);
 
-            $createdAt = isset($this->data['created_at'])
-                ? Carbon::parse($this->data['created_at'])->format('Y-m-d H:i:s')
-                : now();
+            $createdAt = null;
+
+            // Pastikan data created_at tidak kosong
+            if (!empty($this->data['created_at'])) {
+                try {
+                    // Parsing tanggal dan set waktu default 00:00:00
+                    $createdAt = Carbon::parse($this->data['created_at'])->format('Y-m-d') . ' 00:00:00';
+                } catch (\Exception $e) {
+                    Log::warning('Format tanggal created_at tidak valid:', [
+                        'input' => $this->data['created_at'],
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            // Jika parsing gagal atau null, jangan gunakan now(), tetap null
+            if (!$createdAt) {
+                Log::error('Nilai created_at tidak valid atau kosong, tidak menyimpan PR:', [
+                    'number' => $this->data['number'],
+                ]);
+                return null;
+            }
+
 
             $user = User::firstOrCreate(
                 ['name' => $requestedByName],
                 [
                     'email' => Str::slug($requestedByName) . '@kpi.com',
                     'password' => Hash::make('12345678'),
+                    'department_id' => $department->id,
                 ]
             );
             $user->assignRole('User');
-
-            $department = Department::firstOrCreate(['name' => $departmentName]);
 
             $purchaseRequisition = PurchaseRequisition::create([
                 'number' => $this->data['number'],
@@ -91,8 +111,8 @@ class PurchaseRequisitionImporter extends Importer
                 'department_id' => $department->id,
                 'status' => $this->data['status'] ?? 0,
                 'created_at' => $createdAt,
-                'approved_at' => $this->data['approved_at'] ?? null,
-                'cancelled_at' => $this->data['cancelled_at'] ?? null,
+                'approved_at' => $this->parseDate($this->data['approved_at']),
+                'cancelled_at' => $this->parseDate($this->data['cancelled_at']),
             ]);
 
             Log::info('Purchase Requisition baru dibuat:', ['id' => $purchaseRequisition->id]);
@@ -100,6 +120,11 @@ class PurchaseRequisitionImporter extends Importer
             if (!empty($this->data['items'])) {
                 $this->syncItemsWithPurchaseRequisition($purchaseRequisition, $this->data['items']);
             }
+
+            // Jika status PR = 1, buat Purchase Order
+        if ($purchaseRequisition->status == 1) {
+            $this->createPurchaseOrderFromRequisition($purchaseRequisition);
+        }
 
             return $purchaseRequisition;
         } catch (\Exception $e) {
@@ -109,6 +134,28 @@ class PurchaseRequisitionImporter extends Importer
             ]);
             return null;
         }
+    }
+
+    private function parseDate($date)
+    {
+        if (empty($date)) {
+            return null;
+        }
+
+        // Coba beberapa format umum yang digunakan
+        $formats = ['d/m/Y', 'Y-m-d', 'm/d/Y'];
+
+        foreach ($formats as $format) {
+            try {
+                return Carbon::createFromFormat($format, $date)->format('Y-m-d');
+            } catch (\Exception $e) {
+                continue;
+            }
+        }
+
+        // Jika tidak cocok, log error dan return null
+        Log::warning("Format tanggal tidak dikenali: $date");
+        return null;
     }
 
     private function syncItemsWithPurchaseRequisition(PurchaseRequisition $purchaseRequisition, string $itemsJson): void
@@ -175,6 +222,80 @@ class PurchaseRequisitionImporter extends Importer
             ]);
         }
     }
+
+    private function createPurchaseOrderFromRequisition(PurchaseRequisition $purchaseRequisition)
+{
+    try {
+        Log::info('Membuat Purchase Order untuk PR:', ['pr_id' => $purchaseRequisition->id]);
+
+        // Ambil nama vendor dan buyer dari data PR (pastikan kolom ini ada di CSV)
+        $vendorName = trim($this->data['vendor'] ?? '');
+        $buyerName = trim($this->data['buyer'] ?? '');
+        $departmentName = trim($this->data['department_id']);
+        
+        // Cari atau buat vendor
+        $vendor = !empty($vendorName) ? Vendor::firstOrCreate(['name' => $vendorName]) : null;
+        $department = Department::firstOrCreate(['name' => $departmentName]);
+
+        // Cari atau buat buyer (User)
+        if (!empty($buyerName)) {
+            $buyer = User::firstOrCreate(
+                ['name' => $buyerName],
+                [
+                    'email' => Str::slug($buyerName) . '@kpi.com',
+                    'password' => Hash::make('12345678'),
+                    'department_id' => $department->id,
+                ]
+            );
+            $buyer->assignRole('User');
+        } else {
+            $buyer = User::find($purchaseRequisition->requested_by); // Default ke requested_by jika buyer kosong
+        }
+
+        $purchaseOrder = PurchaseOrder::create([
+            'purchase_requisition_id' => $purchaseRequisition->id,
+            'vendor_id' => $vendor ? $vendor->id : null, // Gunakan vendor yang ditemukan atau null
+            'buyer' => $buyer->id, // Set buyer berdasarkan data dari CSV atau requested_by
+            'eta' => null, // ETA bisa ditentukan nanti
+            'mar_no' => null,
+            'is_confirmed' => false,
+            'is_received' => false,
+            'is_closed' => false,
+            'confirmed_at' => null,
+            'received_at' => null,
+            'closed_at' => null,
+            'created_by' => $purchaseRequisition->requested_by,
+            'updated_by' => $purchaseRequisition->requested_by,
+        ]);
+
+        Log::info('Purchase Order berhasil dibuat:', ['po_id' => $purchaseOrder->id]);
+
+        foreach ($purchaseRequisition->purchaseRequisitionItems as $prItem) {
+            $poLine = PurchaseOrderLine::create([
+                'purchase_order_id' => $purchaseOrder->id,
+                'purchase_requisition_item_id' => $prItem->id,
+                'item_id' => $prItem->item_id,
+                'qty' => $prItem->qty,
+                'unit_price' => $prItem->unit_price,
+                'total_price' => $prItem->qty * $prItem->unit_price,
+                'received_qty' => 0,
+                'status' => 'pending',
+                'description' => $prItem->Item->name,
+            ]);
+
+            Log::info('Purchase Order Line dibuat:', ['po_line_id' => $poLine->id]);
+        }
+
+        Log::info('Purchase Order dan Order Lines selesai dibuat.', ['po_id' => $purchaseOrder->id]);
+
+    } catch (\Exception $e) {
+        Log::error('Error saat membuat Purchase Order:', [
+            'message' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+        ]);
+    }
+}
+
 
     private function isJsonArray($string)
     {

@@ -19,18 +19,18 @@ class ListPurchaseRequisitions extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            // ImportAction::make()
-            //     ->label('Import')
-            //     ->icon('heroicon-s-document-arrow-down')
-            //     ->importer(PurchaseRequisitionImporter::class),
-            // ExportAction::make()
-            //     ->exporter(PurchaseRequisitionExporter::class)
-            //     ->label('Export')
-            //     ->icon('heroicon-s-document-arrow-up')
-            //     ->formats([
-            //         ExportFormat::Xlsx,
-            //         ExportFormat::Csv,
-            //     ]),
+            ImportAction::make()
+                ->label('Import')
+                ->icon('heroicon-s-document-arrow-down')
+                ->importer(PurchaseRequisitionImporter::class),
+            ExportAction::make()
+                ->exporter(PurchaseRequisitionExporter::class)
+                ->label('Export')
+                ->icon('heroicon-s-document-arrow-up')
+                ->formats([
+                    ExportFormat::Xlsx,
+                    ExportFormat::Csv,
+                ]),
             Actions\CreateAction::make()
                 ->label('Create Purchase Requisition')
                 ->icon('heroicon-s-plus-circle'),
