@@ -320,10 +320,14 @@ class PurchaseRequisitionResource extends Resource
                                                 $totalPrice = $unitPrice * $qty;
 
                                                 $formattedTotalPrice = number_format($totalPrice, 0, '.', ',');
+                                                $set('unit_price', $unitPrice);
                                                 $set('total_price', $formattedTotalPrice);
                                             })
                                             ->columnSpanFull()
                                             ->required(),
+                                        TextInput::make('unit_price')
+                                            ->hidden()
+                                            ->dehydratedWhenHidden(),
                                         TextInput::make('qty')
                                             ->label('Quantity')
                                             ->placeholder('Qty')
@@ -587,14 +591,14 @@ class PurchaseRequisitionResource extends Resource
             ->bulkActions([
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),
-                    // ExportBulkAction::make()
-                    //     ->label('Export Selected')
-                    //     ->icon('heroicon-s-document-arrow-up')
-                    //     ->exporter(PurchaseRequisitionExporter::class)
-                    //     ->formats([
-                    //         ExportFormat::Xlsx,
-                    //         ExportFormat::Csv,
-                    //     ]),
+                    ExportBulkAction::make()
+                        ->label('Export Selected')
+                        ->icon('heroicon-s-document-arrow-up')
+                        ->exporter(PurchaseRequisitionExporter::class)
+                        ->formats([
+                            ExportFormat::Xlsx,
+                            ExportFormat::Csv,
+                        ]),
                 ]),
             ]);
     }
