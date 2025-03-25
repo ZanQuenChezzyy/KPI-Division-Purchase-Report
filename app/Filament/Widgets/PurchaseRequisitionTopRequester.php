@@ -18,11 +18,10 @@ class PurchaseRequisitionTopRequester extends BaseWidget
     {
         return $table
             ->heading('Top Requesters')
-            ->description('A list of Requester ranked by the number of purchase Requisition they have made.')
+            ->description('A list of Requester ranked by the number of purchase requisitions they have made.')
             ->query(
                 PurchaseRequisition::query()
-                    ->join('user_departments', 'purchase_requisitions.requested_by', '=', 'user_departments.id')
-                    ->join('users', 'user_departments.user_id', '=', 'users.id')
+                    ->join('users', 'purchase_requisitions.requested_by', '=', 'users.id') // Hapus user_departments
                     ->selectRaw('users.id, users.name as requester_name, COUNT(purchase_requisitions.id) as total_requests')
                     ->groupBy('users.id', 'users.name')
                     ->orderByDesc('total_requests')

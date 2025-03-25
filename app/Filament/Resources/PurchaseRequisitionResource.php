@@ -60,7 +60,7 @@ class PurchaseRequisitionResource extends Resource
         }
 
         // Ambil semua ID departemen yang terkait dengan user
-        $departmentIds = $user->departments->pluck('id');
+        $departmentIds = $user->department->pluck('id');
 
         // Jika user tidak memiliki departemen, return 0
         if ($departmentIds->isEmpty()) {
@@ -116,22 +116,18 @@ class PurchaseRequisitionResource extends Resource
                         Section::make('Requester Details')
                             ->schema([
                                 Select::make('requested_by')
-                                    ->label('Requester By')
+                                    ->label('Requested By')
                                     ->placeholder('Select Requester')
-                                    ->relationship('UserDepartment', 'id', function ($query) {
-                                        return $query->with('User');
-                                    })
-                                    ->getOptionLabelFromRecordUsing(fn($record) => $record->User->name)
+                                    ->relationship('user', 'name')
                                     ->native(false)
                                     ->preload()
                                     ->searchable()
                                     ->live()
-                                    ->afterStateUpdated(function (callable $set, $state) {
-                                        // Ambil department_id dari user_department yang dipilih
-                                        $departmentId = \App\Models\UserDepartment::where('id', $state)->value('department_id');
-
-                                        // Set department_id secara otomatis
-                                        $set('department_id', $departmentId);
+                                    ->afterStateUpdated(function ($state, callable $set) {
+                                        if ($state) {
+                                            $user = \App\Models\User::find($state);
+                                            $set('department_id', $user?->department_id);
+                                        }
                                     })
                                     ->required(),
 
@@ -319,7 +315,6 @@ class PurchaseRequisitionResource extends Resource
                                             ->afterStateUpdated(function ($state, callable $get, callable $set) {
                                                 $item = \App\Models\Item::find($state);
                                                 $unitPrice = (float) ($item?->unit_price ?? 0);
-                                                $set('unit_price', $unitPrice);
 
                                                 $qty = (int) ($get('qty') ?? 1);
                                                 $totalPrice = $unitPrice * $qty;
@@ -329,11 +324,6 @@ class PurchaseRequisitionResource extends Resource
                                             })
                                             ->columnSpanFull()
                                             ->required(),
-                                        TextInput::make('unit_price')
-                                            ->label('Unit Price')
-                                            ->dehydratedWhenHidden()
-                                            ->hidden()
-                                            ->numeric(),
                                         TextInput::make('qty')
                                             ->label('Quantity')
                                             ->placeholder('Qty')
@@ -344,11 +334,14 @@ class PurchaseRequisitionResource extends Resource
                                             ->numeric()
                                             ->live(debounce: 800)
                                             ->afterStateUpdated(function ($state, callable $get, callable $set) {
-                                                $unitPrice = $get('unit_price') ?? 0;
+                                                $item = \App\Models\Item::find($get('item_id'));
+                                                $unitPrice = (float) ($item?->unit_price ?? 0);
+
                                                 $totalPrice = $unitPrice * $state;
                                                 $formattedTotalPrice = number_format($totalPrice, 0, '.', ',');
                                                 $set('total_price', $formattedTotalPrice);
                                             })
+                                            ->default(1)
                                             ->columnSpan(2)
                                             ->required(),
                                         TextInput::make('total_price')
@@ -433,7 +426,7 @@ class PurchaseRequisitionResource extends Resource
                             ->columnSpan(4),
                         Fieldset::make('Requester Details')
                             ->schema([
-                                TextEntry::make('UserDepartment.User.name')
+                                TextEntry::make('user.name')
                                     ->label('Requested By'),
                                 TextEntry::make('department.name')
                                     ->label('Department')
@@ -476,22 +469,18 @@ class PurchaseRequisitionResource extends Resource
                     ->label('Department'),
                 GroupingGroup::make('status')
                     ->getTitleFromRecordUsing(fn(PurchaseRequisition $record): string => match ($record->status) {
-                        1 => 'Pending',
-                        2 => 'Approved',
-                        3 => 'Cancelled',
+                        0 => 'Pending',
+                        1 => 'Approved',
+                        2 => 'Cancelled',
                         default => 'Unknown',
                     }),
             ])
             ->modifyQueryUsing(function ($query) {
                 $user = auth()->user();
 
-                // Jika user bukan Administrator, filter berdasarkan departemennya
-                if (!$user->hasRole('Administrator')) {
-                    $departmentId = $user->userDepartments()->first()?->department_id;
-
-                    if ($departmentId) {
-                        $query->where('department_id', $departmentId);
-                    }
+                // Jika user bukan Administrator, filter berdasarkan department_id di tabel users
+                if ($user && !$user->hasRole('Administrator')) {
+                    $query->where('department_id', $user->department_id);
                 }
 
                 // Order by status terbaru duluan, lalu berdasarkan tanggal dibuat
@@ -509,7 +498,7 @@ class PurchaseRequisitionResource extends Resource
                     ->badge()
                     ->color('info'),
 
-                TextColumn::make('UserDepartment.User.name')
+                TextColumn::make('user.name')
                     ->label('Requested By')
                     ->description(fn(PurchaseRequisition $record): string => $record->Department->name)
                     ->searchable(['department_id', 'requested_by']),
@@ -578,7 +567,7 @@ class PurchaseRequisitionResource extends Resource
                 SelectFilter::make('user_id')
                     ->label('Requester')
                     ->placeholder('Select Requester')
-                    ->relationship('UserDepartment.User', 'name')
+                    ->relationship('user', 'name')
                     ->native(false)
                     ->preload()
                     ->searchable(),

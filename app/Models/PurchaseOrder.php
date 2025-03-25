@@ -21,6 +21,8 @@ class PurchaseOrder extends Model
         'confirmed_at',
         'received_at',
         'closed_at',
+        'created_by',
+        'updated_by',
     ];
 
     protected static function booted()
@@ -45,13 +47,23 @@ class PurchaseOrder extends Model
         return $this->belongsTo(\App\Models\PurchaseRequisition::class, 'purchase_requisition_id', 'id');
     }
 
-    public function UserDepartment(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function User(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
-        return $this->belongsTo(\App\Models\UserDepartment::class, 'buyer', 'id');
+        return $this->belongsTo(\App\Models\User::class, 'buyer', 'id');
     }
 
     public function purchaseOrderLines(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(\App\Models\PurchaseOrderLine::class);
+    }
+
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function updatedBy()
+    {
+        return $this->belongsTo(User::class, 'updated_by');
     }
 }

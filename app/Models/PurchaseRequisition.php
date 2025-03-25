@@ -20,12 +20,6 @@ class PurchaseRequisition extends Model
         'approved_at',
     ];
 
-    protected $casts = [
-        'requested_by' => 'integer',
-        'department_id' => 'integer',
-        // lainnya...
-    ];
-
     public function Department(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(\App\Models\Department::class, 'department_id', 'id');
@@ -36,9 +30,9 @@ class PurchaseRequisition extends Model
         return $this->belongsTo(\App\Models\PurchaseType::class, 'purchase_type_id', 'id');
     }
 
-    public function UserDepartment(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function User(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
-        return $this->belongsTo(\App\Models\UserDepartment::class, 'requested_by', 'id');
+        return $this->belongsTo(\App\Models\User::class, 'requested_by', 'id');
     }
 
     public function purchaseOrders(): \Illuminate\Database\Eloquent\Relations\HasMany

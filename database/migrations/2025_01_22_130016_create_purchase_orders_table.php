@@ -14,7 +14,7 @@ return new class extends Migration {
             $table->id();
             $table->foreignId('purchase_requisition_id')->constrained('purchase_requisitions')->cascadeOnDelete();
             $table->foreignId('vendor_id')->constrained('vendors')->cascadeOnDelete();
-            $table->foreignId('buyer')->constrained('user_departments')->cascadeOnDelete();
+            $table->foreignId('buyer')->constrained('users')->cascadeOnDelete();
             $table->string('eta', 25)->nullable();
             $table->string('mar_no', 25)->nullable();
             $table->boolean('is_confirmed')->default(false);
@@ -23,6 +23,8 @@ return new class extends Migration {
             $table->date('confirmed_at')->nullable();
             $table->date('received_at')->nullable();
             $table->date('closed_at')->nullable();
+            $table->foreignId('created_by')->constrained('users')->cascadeOnDelete();
+            $table->foreignId('updated_by')->nullable()->constrained('users')->cascadeOnDelete();
             $table->timestamps();
         });
     }

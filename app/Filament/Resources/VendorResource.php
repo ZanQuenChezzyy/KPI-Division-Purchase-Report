@@ -7,6 +7,7 @@ use App\Filament\Resources\VendorResource\Pages;
 use App\Filament\Resources\VendorResource\RelationManagers;
 use App\Models\Vendor;
 use Filament\Forms;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Pages\SubNavigationPosition;
@@ -56,11 +57,16 @@ class VendorResource extends Resource
                     ->maxLength(45)
                     ->required(),
 
-                TextInput::make('type')
+                Select::make('type')
                     ->label('Vendor Type')
-                    ->placeholder('Enter Vendor Type')
-                    ->minLength(3)
-                    ->maxLength(45)
+                    ->placeholder('Select Vendor Type')
+                    ->options([
+                        0 => 'International',
+                        1 => 'Domestic',
+                    ])
+                    ->native(false)
+                    ->preload()
+                    ->searchable()
                     ->required(),
             ]);
     }
@@ -73,7 +79,14 @@ class VendorResource extends Resource
                     ->label('Vendor')
                     ->sortable()
                     ->searchable(),
-                TextColumn::make('type'),
+                TextColumn::make('type')
+                    ->badge()
+                    ->formatStateUsing(fn(int $state): string => match ($state) {
+                        0 => 'International',
+                        1 => 'Domestic',
+                        default => 'Status Tidak Diketahui',
+                    })
+                    ->color('info'),
             ])
             ->filters([
                 //

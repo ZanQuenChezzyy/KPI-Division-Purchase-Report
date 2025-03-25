@@ -9,6 +9,7 @@ use App\Models\PurchaseOrder;
 use Closure;
 use Filament\Forms;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Grid;
 use Filament\Forms\Components\Group;
 use Filament\Forms\Components\Section;
@@ -38,6 +39,7 @@ use Filament\Tables\Grouping\Group as GroupingGroup;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class PurchaseOrderResource extends Resource
@@ -82,7 +84,7 @@ class PurchaseOrderResource extends Resource
                                             ->when(!empty($search), function ($query) use ($search) {
                                             $query->where(function ($q) use ($search) {
                                                 $q->where('number', 'like', "%{$search}%")
-                                                    ->orWhereHas('userDepartment.user', function ($q) use ($search) {
+                                                    ->orWhereHas('user', function ($q) use ($search) {
                                                         $q->where('name', 'like', "%{$search}%");
                                                     });
                                             });
@@ -101,7 +103,7 @@ class PurchaseOrderResource extends Resource
                             ->getOptionLabelFromRecordUsing(function (Model $record) {
                                 $number = $record->number;
                                 $type = $record->purchaseType->name;
-                                $requestedBy = optional($record->userDepartment->user)->name ?? 'Unknown'; // Menghindari error jika user tidak ada
+                                $requestedBy = optional($record->user)->name ?? 'Unknown'; // Menghindari error jika user tidak ada
                                 $department = $record->department->name;
 
                                 return "($number) - $type [$requestedBy, $department]";
@@ -112,30 +114,44 @@ class PurchaseOrderResource extends Resource
                             ->label('Vendor')
                             ->placeholder('Select Vendor')
                             ->relationship('vendor', 'name')
+                            ->createOptionForm([
+                                Group::make([
+                                    TextInput::make('name')
+                                        ->label('Vendors Name')
+                                        ->placeholder('Enter Vendor Name')
+                                        ->minLength(3)
+                                        ->maxLength(45)
+                                        ->required(),
+
+                                    Select::make('type')
+                                        ->label('Vendor Type')
+                                        ->placeholder('Select Vendor Type')
+                                        ->options([
+                                            0 => 'International',
+                                            1 => 'Domestic',
+                                        ])
+                                        ->native(false)
+                                        ->preload()
+                                        ->searchable()
+                                        ->required(),
+                                ])->columns(2)
+                            ])
                             ->native(false)
                             ->preload()
                             ->searchable()
-                            ->getOptionLabelFromRecordUsing(function (Model $record) {
-                                $name = $record->name;
-                                $type = $record->type;
-
-                                return "$name - $type";
-                            })
                             ->required(),
 
                         Select::make('buyer')
                             ->label('Buyer')
                             ->placeholder('Select Buyer Name')
-                            ->relationship('userDepartment', 'id') // Ambil langsung dari UserDepartment
+                            ->relationship(
+                                'user',
+                                'name',
+                                fn($query) => $query->whereHas('department', fn($q) => $q->where('name', 'Logistic')) // Filter berdasarkan nama department
+                            )
                             ->native(false)
                             ->preload()
                             ->searchable()
-                            ->getOptionLabelFromRecordUsing(function (Model $record) {
-                                $user = optional($record->user)->name ?? 'No User';
-                                $department = optional($record->department)->name ?? 'No Department';
-
-                                return "$user - $department";
-                            })
                             ->required(),
 
                         DatePicker::make('eta')
@@ -148,162 +164,176 @@ class PurchaseOrderResource extends Resource
                             ->placeholder('Enter Mar Number')
                             ->minLength(3)
                             ->maxLength(15),
-
                     ])->columns(2)
                     ->columnSpan(3),
-                Section::make('Order Status')
-                    ->schema([
-                        Group::make()
-                            ->schema([
-                                Toggle::make('is_confirmed')
-                                    ->label('Order Confirmed')
-                                    ->inline(false)
-                                    ->onIcon('heroicon-m-bolt')
-                                    ->offIcon('heroicon-m-check')
-                                    ->live()
-                                    ->afterStateUpdated(function ($state, callable $set) {
-                                        if ($state) {
-                                            $set('confirmed_at', now());
-                                        } else {
-                                            $set('confirmed_at', null);
-                                        }
-                                    })
-                                    ->required(),
+                Group::make([
+                    Section::make()
+                        ->schema([
+                            Placeholder::make('created_by')
+                                ->label('Created By')
+                                ->content(fn(PurchaseOrder $record): ?string => $record->createdBy?->name),
 
-                                TextInput::make('id')
-                                    ->hidden(),
-
-                                Toggle::make('is_received')
-                                    ->label('Order Received')
-                                    ->inline(false)
-                                    ->onColor('success')
-                                    ->onIcon('heroicon-m-bolt')
-                                    ->offIcon('heroicon-m-check')
-                                    ->live()
-                                    ->afterStateUpdated(function ($state, Set $set, Get $get) {
-                                        if ($state) { // Cek jika user mencoba mengaktifkan toggle
-                                            $purchaseOrderId = $get('id'); // Ambil ID Purchase Order
-
-                                            // Cek apakah ada item yang belum berstatus '2' (Received)
-                                            $hasUnreceivedItems = \App\Models\PurchaseOrderLine::where('purchase_order_id', $purchaseOrderId)
-                                                ->where('status', '!=', 2)
-                                                ->exists();
-
-                                            if ($hasUnreceivedItems) {
-                                                // Hentikan perubahan dan tampilkan pesan error
-                                                $set('is_received', false); // Pastikan toggle tidak aktif
-                                                Notification::make()
-                                                    ->title('Cannot mark as received')
-                                                    ->body('Some items are not fully received yet.')
-                                                    ->danger()
-                                                    ->send();
-                                            } else {
-                                                // Semua item sudah received, set tanggalnya
-                                                $set('received_at', now());
-                                            }
-                                        } else {
-                                            // Jika toggle dimatikan, kosongkan tanggal
-                                            $set('received_at', null);
-                                        }
-                                    }),
-
-                                Toggle::make('is_closed')
-                                    ->label('Order Closed')
-                                    ->inline(false)
-                                    ->onColor('success')
-                                    ->onIcon('heroicon-m-bolt')
-                                    ->offIcon('heroicon-m-x-mark')
-                                    ->live()
-                                    ->afterStateUpdated(function ($state, callable $set, callable $get) {
-                                        // Cek jika user mencoba mengaktifkan toggle
-                                        if ($state) {
-                                            $isReceived = $get('is_received'); // Ambil status is_received
-
-                                            // Jika belum received, tolak aktivasi
-                                            if (!$isReceived) {
-                                                $set('is_closed', false); // Kembalikan toggle ke off
-                                                Notification::make()
-                                                    ->title('Cannot close order')
-                                                    ->body('You must mark the order as received before closing it.')
-                                                    ->danger()
-                                                    ->send();
-                                                return false; // Hentikan update
-                                            } else {
-                                                // Set tanggal closed jika received sudah true
-                                                $set('closed_at', now());
-                                            }
-                                        } else {
-                                            // Jika toggle dimatikan, kosongkan closed_at
-                                            $set('closed_at', null);
-                                        }
-                                    }),
-                            ])->columns(3)
-                            ->columnSpan(2),
-                        Group::make([
-                            DatePicker::make('confirmed_at')
-                                ->label('Confirmed At')
-                                ->placeholder('Select Confirmed Date')
-                                ->native(false)
-                                ->dehydratedWhenHidden()
-                                ->hidden(fn(Get $get): bool => !$get('is_confirmed'))
-                                ->columnSpan(fn(Get $get): ?string => $get('is_confirmed') && (!$get('is_received') && !$get('is_closed')) ? 'full' : null)
-                                ->required(fn(Get $get): bool => $get('is_confirmed')),
-
-                            DatePicker::make('received_at')
-                                ->label('Received At')
-                                ->placeholder('Select Received Date')
-                                ->native(false)
-                                ->dehydratedWhenHidden()
-                                ->hidden(fn(Get $get): bool => !$get('is_received'))
-                                ->columnSpan(fn(Get $get): ?string => $get('is_received') && (!$get('is_confirmed') && !$get('is_closed')) ? 'full' : null)
-                                ->required(fn(Get $get): bool => $get('is_received')),
-
-                            DatePicker::make('closed_at')
-                                ->label('Closed At')
-                                ->placeholder('Select Closed Date')
-                                ->native(false)
-                                ->dehydratedWhenHidden()
-                                ->hidden(fn(Get $get): bool => !$get('is_closed'))
-                                ->columnSpan(fn(Get $get): ?string => $get('is_closed') && (!$get('is_confirmed') && !$get('is_received')) ? 'full' : null)
-                                ->required(fn(Get $get): bool => $get('is_closed')),
+                            Placeholder::make('updated_by')
+                                ->label('Updated By')
+                                ->content(fn(PurchaseOrder $record): ?string => $record->updatedBy?->name),
                         ])
-                            ->columns(3)
-                            ->columnSpan(2)
-                            ->hidden(fn(Get $get) => $get('is_confirmed') + $get('is_received') + $get('is_closed') === 2),
+                        ->columnSpan(2)
+                        ->columns(2)
+                        ->hidden(fn(?PurchaseOrder $record) => $record === null),
+                    Section::make('Order Status')
+                        ->schema([
+                            Group::make()
+                                ->schema([
+                                    Toggle::make('is_confirmed')
+                                        ->label('Order Confirmed')
+                                        ->inline(false)
+                                        ->onIcon('heroicon-m-bolt')
+                                        ->offIcon('heroicon-m-check')
+                                        ->live()
+                                        ->afterStateUpdated(function ($state, callable $set) {
+                                            if ($state) {
+                                                $set('confirmed_at', now());
+                                            } else {
+                                                $set('confirmed_at', null);
+                                            }
+                                        })
+                                        ->required(),
 
-                        Group::make([
-                            DatePicker::make('confirmed_at')
-                                ->label('Confirmed At')
-                                ->placeholder('Select Confirmed Date')
-                                ->native(false)
-                                ->dehydratedWhenHidden()
-                                ->hidden(fn(Get $get): bool => !$get('is_confirmed'))
-                                ->columnSpan(fn(Get $get): ?string => $get('is_confirmed') && (!$get('is_received') && !$get('is_closed')) ? 'full' : null)
-                                ->required(fn(Get $get): bool => $get('is_confirmed')),
+                                    TextInput::make('id')
+                                        ->hidden(),
 
-                            DatePicker::make('received_at')
-                                ->label('Received At')
-                                ->placeholder('Select Received Date')
-                                ->native(false)
-                                ->dehydratedWhenHidden()
-                                ->hidden(fn(Get $get): bool => !$get('is_received'))
-                                ->columnSpan(fn(Get $get): ?string => $get('is_received') && (!$get('is_confirmed') && !$get('is_closed')) ? 'full' : null)
-                                ->required(fn(Get $get): bool => $get('is_received')),
+                                    Toggle::make('is_received')
+                                        ->label('Order Received')
+                                        ->inline(false)
+                                        ->onColor('success')
+                                        ->onIcon('heroicon-m-bolt')
+                                        ->offIcon('heroicon-m-check')
+                                        ->live()
+                                        ->afterStateUpdated(function ($state, Set $set, Get $get) {
+                                            if ($state) { // Cek jika user mencoba mengaktifkan toggle
+                                                $purchaseOrderId = $get('id'); // Ambil ID Purchase Order
 
-                            DatePicker::make('closed_at')
-                                ->label('Closed At')
-                                ->placeholder('Select Closed Date')
-                                ->native(false)
-                                ->dehydratedWhenHidden()
-                                ->hidden(fn(Get $get): bool => !$get('is_closed'))
-                                ->columnSpan(fn(Get $get): ?string => $get('is_closed') && (!$get('is_confirmed') && !$get('is_received')) ? 'full' : null)
-                                ->required(fn(Get $get): bool => $get('is_closed')),
-                        ])
-                            ->columns(2)
-                            ->columnSpan(2)
-                            ->hidden(fn(Get $get) => $get('is_confirmed') + $get('is_received') + $get('is_closed') !== 2),
-                    ])->columns(2)
-                    ->columnSpan(2),
+                                                // Cek apakah ada item yang belum berstatus '2' (Received)
+                                                $hasUnreceivedItems = \App\Models\PurchaseOrderLine::where('purchase_order_id', $purchaseOrderId)
+                                                    ->where('status', '!=', 2)
+                                                    ->exists();
+
+                                                if ($hasUnreceivedItems) {
+                                                    // Hentikan perubahan dan tampilkan pesan error
+                                                    $set('is_received', false); // Pastikan toggle tidak aktif
+                                                    Notification::make()
+                                                        ->title('Cannot mark as received')
+                                                        ->body('Some items are not fully received yet.')
+                                                        ->danger()
+                                                        ->send();
+                                                } else {
+                                                    // Semua item sudah received, set tanggalnya
+                                                    $set('received_at', now());
+                                                }
+                                            } else {
+                                                // Jika toggle dimatikan, kosongkan tanggal
+                                                $set('received_at', null);
+                                            }
+                                        }),
+
+                                    Toggle::make('is_closed')
+                                        ->label('Order Closed')
+                                        ->inline(false)
+                                        ->onColor('success')
+                                        ->onIcon('heroicon-m-bolt')
+                                        ->offIcon('heroicon-m-x-mark')
+                                        ->live()
+                                        ->afterStateUpdated(function ($state, callable $set, callable $get) {
+                                            // Cek jika user mencoba mengaktifkan toggle
+                                            if ($state) {
+                                                $isReceived = $get('is_received'); // Ambil status is_received
+
+                                                // Jika belum received, tolak aktivasi
+                                                if (!$isReceived) {
+                                                    $set('is_closed', false); // Kembalikan toggle ke off
+                                                    Notification::make()
+                                                        ->title('Cannot close order')
+                                                        ->body('You must mark the order as received before closing it.')
+                                                        ->danger()
+                                                        ->send();
+                                                    return false; // Hentikan update
+                                                } else {
+                                                    // Set tanggal closed jika received sudah true
+                                                    $set('closed_at', now());
+                                                }
+                                            } else {
+                                                // Jika toggle dimatikan, kosongkan closed_at
+                                                $set('closed_at', null);
+                                            }
+                                        }),
+                                ])->columns(3)
+                                ->columnSpan(2),
+                            Group::make([
+                                DatePicker::make('confirmed_at')
+                                    ->label('Confirmed At')
+                                    ->placeholder('Select Confirmed Date')
+                                    ->native(false)
+                                    ->dehydratedWhenHidden()
+                                    ->hidden(fn(Get $get): bool => !$get('is_confirmed'))
+                                    ->columnSpan(fn(Get $get): ?string => $get('is_confirmed') && (!$get('is_received') && !$get('is_closed')) ? 'full' : null)
+                                    ->required(fn(Get $get): bool => $get('is_confirmed')),
+
+                                DatePicker::make('received_at')
+                                    ->label('Received At')
+                                    ->placeholder('Select Received Date')
+                                    ->native(false)
+                                    ->dehydratedWhenHidden()
+                                    ->hidden(fn(Get $get): bool => !$get('is_received'))
+                                    ->columnSpan(fn(Get $get): ?string => $get('is_received') && (!$get('is_confirmed') && !$get('is_closed')) ? 'full' : null)
+                                    ->required(fn(Get $get): bool => $get('is_received')),
+
+                                DatePicker::make('closed_at')
+                                    ->label('Closed At')
+                                    ->placeholder('Select Closed Date')
+                                    ->native(false)
+                                    ->dehydratedWhenHidden()
+                                    ->hidden(fn(Get $get): bool => !$get('is_closed'))
+                                    ->columnSpan(fn(Get $get): ?string => $get('is_closed') && (!$get('is_confirmed') && !$get('is_received')) ? 'full' : null)
+                                    ->required(fn(Get $get): bool => $get('is_closed')),
+                            ])
+                                ->columns(3)
+                                ->columnSpan(2)
+                                ->hidden(fn(Get $get) => $get('is_confirmed') + $get('is_received') + $get('is_closed') === 2),
+
+                            Group::make([
+                                DatePicker::make('confirmed_at')
+                                    ->label('Confirmed At')
+                                    ->placeholder('Select Confirmed Date')
+                                    ->native(false)
+                                    ->dehydratedWhenHidden()
+                                    ->hidden(fn(Get $get): bool => !$get('is_confirmed'))
+                                    ->columnSpan(fn(Get $get): ?string => $get('is_confirmed') && (!$get('is_received') && !$get('is_closed')) ? 'full' : null)
+                                    ->required(fn(Get $get): bool => $get('is_confirmed')),
+
+                                DatePicker::make('received_at')
+                                    ->label('Received At')
+                                    ->placeholder('Select Received Date')
+                                    ->native(false)
+                                    ->dehydratedWhenHidden()
+                                    ->hidden(fn(Get $get): bool => !$get('is_received'))
+                                    ->columnSpan(fn(Get $get): ?string => $get('is_received') && (!$get('is_confirmed') && !$get('is_closed')) ? 'full' : null)
+                                    ->required(fn(Get $get): bool => $get('is_received')),
+
+                                DatePicker::make('closed_at')
+                                    ->label('Closed At')
+                                    ->placeholder('Select Closed Date')
+                                    ->native(false)
+                                    ->dehydratedWhenHidden()
+                                    ->hidden(fn(Get $get): bool => !$get('is_closed'))
+                                    ->columnSpan(fn(Get $get): ?string => $get('is_closed') && (!$get('is_confirmed') && !$get('is_received')) ? 'full' : null)
+                                    ->required(fn(Get $get): bool => $get('is_closed')),
+                            ])
+                                ->columns(2)
+                                ->columnSpan(2)
+                                ->hidden(fn(Get $get) => $get('is_confirmed') + $get('is_received') + $get('is_closed') !== 2),
+                        ])->columnSpan(2)
+                        ->columns(2)
+                ])->columnSpan(2)
             ])->columns(5);
     }
 
@@ -325,16 +355,20 @@ class PurchaseOrderResource extends Resource
                     ->badge()
                     ->color('info'),
 
-                TextColumn::make('purchaseRequisition.userDepartment.user.name')
+                TextColumn::make('purchaseRequisition.user.name')
                     ->label('Requested By')
                     ->searchable()
                     ->description(fn(PurchaseOrder $record): string => $record->PurchaseRequisition->Department->name),
 
                 TextColumn::make('vendor.name')
                     ->label('Vendor')
-                    ->description(fn(PurchaseOrder $record): string => $record->vendor->type),
+                    ->description(fn(PurchaseOrder $record): string => match ($record->vendor->type) {
+                        0 => 'International',
+                        1 => 'Domestic',
+                        default => 'Unknown',
+                    }),
 
-                TextColumn::make('userDepartment.user.name')
+                TextColumn::make('user.name')
                     ->label('Buyer')
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -463,18 +497,18 @@ class PurchaseOrderResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                SelectFilter::make('purchaseRequisition.userDepartment.user.name')
+                SelectFilter::make('purchaseRequisition.user.name')
                     ->label('Requested By')
                     ->placeholder('Select Requester')
-                    ->relationship('purchaseRequisition.userDepartment.user', 'name')
+                    ->relationship('purchaseRequisition.user', 'name')
                     ->native(false)
                     ->preload()
                     ->searchable(),
 
-                SelectFilter::make('userDepartment.user.name')
+                SelectFilter::make('user.name')
                     ->label('Buyer')
                     ->placeholder('Select Buyer')
-                    ->relationship('userDepartment.user', 'name')
+                    ->relationship('user', 'name')
                     ->native(false)
                     ->preload()
                     ->searchable(),

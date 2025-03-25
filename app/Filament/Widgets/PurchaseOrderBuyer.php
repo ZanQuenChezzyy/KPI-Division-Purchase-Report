@@ -22,7 +22,7 @@ class PurchaseOrderBuyer extends ChartWidget
     {
         // Ambil data buyer dan jumlah PO yang mereka buat
         $buyers = PurchaseOrder::query()
-            ->join('users', 'purchase_orders.buyer', '=', 'users.id') // Sesuaikan dengan kolom buyer
+            ->join('users', 'purchase_orders.buyer', '=', 'users.id') // Hubungkan dengan users
             ->selectRaw('users.id as user_id, users.name as buyer_name, COUNT(purchase_orders.id) as total_po')
             ->groupBy('users.id', 'users.name')
             ->orderByDesc('total_po')

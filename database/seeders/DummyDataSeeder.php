@@ -29,44 +29,51 @@ class DummyDataSeeder extends Seeder
 
         $this->command->info("Memulai seeding data...");
 
-        // Seed Departments
-        $departments = [];
-        for ($i = 0; $i < 15; $i++) {
-            Department::create([
-                'name' => Str::limit($faker->company . ' Department', 45, ''), // Batasi 45 karakter tanpa ellipsis
-            ]);
-            $departments[] = $i + 1;
-            $this->showProgress($i + 1, 15, 'Departments');
-        }
-        $this->command->newLine(); // Tambah baris baru setelah Departments
+        // Ambil ID Purchase Type dan Department dari database
+        $purchaseTypes = [
+            'None' => 0,
+            'Direct Purchase' => 1,
+            'Indirect Purchase' => 2,
+            'Stock Item' => 3,
+            'Shutdown Plant' => 4,
+            'Global Purchase' => 5,
+            'Outsourcing' => 6,
+            'Consumable' => 9,
+        ];
 
-        // Seed Users and UserDepartments
+        $departments = [
+            'General Affair' => 1,
+            'Human Resource' => 2,
+            'Maintenance' => 3,
+            'Information Technology' => 4,
+            'Project' => 5,
+            'PE/Lab' => 6,
+            'QSHE' => 7,
+            'Production' => 8,
+            'Logistic' => 9,
+            'Shipping' => 10,
+        ];
+
+        $vendorTypes = [
+            'International' => 0,
+            'Domestic' => 1,
+        ];
+
+        // Seed Users
         $users = [];
-        for ($i = 0; $i < 15; $i++) {
+        for ($i = 0; $i < 30; $i++) {
             $user = User::create([
                 'name' => $faker->name,
                 'email' => $faker->unique()->safeEmail,
                 'password' => bcrypt('password'),
+                'department_id' => $faker->randomElement(array_values($departments)), // Pilih ID secara acak dari daftar department
             ]);
 
             $users[] = $user->id;
-
-            UserDepartment::create([
-                'user_id' => $user->id,
-                'department_id' => $faker->randomElement($departments),
-            ]);
             $user->assignRole('User');
-            $this->showProgress($i + 1, 15, 'Users');
+            $this->showProgress($i + 1, 30, 'Users');
         }
-        $this->command->newLine(); // Tambah baris baru setelah Users
-
-        // Seed Purchase Types
-        $purchaseTypes = ['Goods', 'Services', 'Consultancy'];
-        foreach ($purchaseTypes as $index => $type) {
-            PurchaseType::create(['name' => $type]);
-            $this->showProgress($index + 1, count($purchaseTypes), 'Purchase Types');
-        }
-        $this->command->newLine(); // Tambah baris baru setelah Purchase Types
+        $this->command->newLine();
 
         // Seed Vendors
         $vendors = [];
@@ -74,12 +81,12 @@ class DummyDataSeeder extends Seeder
         for ($i = 0; $i < $vendorCount; $i++) {
             $vendor = Vendor::create([
                 'name' => $faker->company,
-                'type' => $faker->randomElement(['Local', 'International']),
+                'type' => $faker->randomElement(array_values($vendorTypes)),
             ]);
             $vendors[] = $vendor->id;
             $this->showProgress($i + 1, $vendorCount, 'Vendors');
         }
-        $this->command->newLine(); // Tambah baris baru setelah Vendors
+        $this->command->newLine();
 
         // Seed Items
         $items = [];
@@ -95,23 +102,26 @@ class DummyDataSeeder extends Seeder
             $items[] = $item->id;
             $this->showProgress($i + 1, $itemCount, 'Items');
         }
-        $this->command->newLine(); // Tambah baris baru setelah Items
+        $this->command->newLine();
 
+        // Seed Purchase Requisitions
         $requisitions = [];
         $requisitionCount = 1761;
-
         for ($i = 0; $i < $requisitionCount; $i++) {
+            $requestedBy = $faker->randomElement($users); // Pilih user secara acak
+            $user = User::find($requestedBy); // Ambil data user untuk mendapatkan department_id
+
             $status = $faker->numberBetween(0, 2); // Tentukan status terlebih dahulu
 
             $requisition = PurchaseRequisition::create([
                 'number' => $faker->unique()->numerify('#####'),
-                'purchase_type_id' => $faker->numberBetween(1, 3),
+                'purchase_type_id' => $faker->randomElement(array_values($purchaseTypes)),
                 'description' => $faker->sentence,
-                'requested_by' => $faker->randomElement($users),
-                'department_id' => $faker->randomElement($departments),
+                'requested_by' => $requestedBy, // User yang mengajukan
+                'department_id' => $user->department_id, // Ambil department_id dari user yang dipilih
                 'status' => $status,
-                'approved_at' => $status === 2 ? $faker->dateTimeThisYear() : null, // Approved only if status === 2
-                'cancelled_at' => $status === 1 ? $faker->dateTimeThisYear() : null, // Cancelled only if status === 1
+                'approved_at' => $status === 2 ? $faker->dateTimeThisYear() : null,
+                'cancelled_at' => $status === 1 ? $faker->dateTimeThisYear() : null,
             ]);
 
             $requisitions[] = $requisition->id;
@@ -131,22 +141,22 @@ class DummyDataSeeder extends Seeder
                 ]);
             }
         }
-
         $this->command->newLine();
 
-        // Filter requisitions dengan status = 2
+        // Filter hanya requisition dengan status = 2
         $approvedRequisitions = PurchaseRequisition::where('status', 2)->pluck('id')->toArray();
 
-        // Seed Purchase Orders hanya dari requisition yang statusnya = 2
         if (empty($approvedRequisitions)) {
             $this->command->warn("\nTidak ada Purchase Requisition dengan status 2.");
         } else {
-            $poCount = count($approvedRequisitions); // Total PO berdasarkan requisitions
-            $targetFullyReceived = ceil($poCount / 2); // Setengah dari PO harus fully received
-            $targetNotConfirmed = ceil($poCount / 3); // 1/3 dari total PO harus tidak confirmed
-            $fullyReceivedCounter = 0; // Counter untuk PO yang fully received
-            $notConfirmedCounter = 0;  // Counter untuk PO yang tidak confirmed
-
+            $poCount = count($approvedRequisitions);
+            $targetFullyReceived = ceil($poCount / 2);
+            $targetNotConfirmed = ceil($poCount / 3);
+            $fullyReceivedCounter = 0;
+            $notConfirmedCounter = 0;
+            $logisticUsers = User::whereHas('department', function ($query) {
+                $query->where('name', 'Logistic'); // Sesuaikan jika nama berbeda
+            })->pluck('id')->toArray();
             foreach ($approvedRequisitions as $index => $approvedRequisitionId) {
                 $makeFullyReceived = $fullyReceivedCounter < $targetFullyReceived;
                 $makeNotConfirmed = $notConfirmedCounter < $targetNotConfirmed;
@@ -154,12 +164,14 @@ class DummyDataSeeder extends Seeder
                 $po = PurchaseOrder::create([
                     'purchase_requisition_id' => $approvedRequisitionId,
                     'vendor_id' => $faker->randomElement($vendors),
-                    'buyer' => $faker->randomElement($users),
+                    'buyer' => !empty($logisticUsers) ? $faker->randomElement($logisticUsers) : null,
                     'eta' => $faker->numerify('######'),
                     'mar_no' => $faker->numerify('######'),
-                    'is_confirmed' => !$makeNotConfirmed, // 1/3 dari PO akan `false`
-                    'is_received' => false, // Akan diupdate jika semua lines diterima
-                    'is_closed' => false,   // Akan diupdate jika semua diterima
+                    'created_by' => $faker->randomElement($users), // Pilih user dari yang sudah dibuat
+                    'updated_by' => $faker->randomElement($users), // Pilih user dari yang sudah dibuat
+                    'is_confirmed' => !$makeNotConfirmed,
+                    'is_received' => false,
+                    'is_closed' => false,
                     'confirmed_at' => $makeNotConfirmed ? null : $faker->dateTimeThisYear(),
                     'received_at' => $faker->dateTimeThisYear(),
                     'closed_at' => $faker->dateTimeThisYear(),
@@ -167,20 +179,18 @@ class DummyDataSeeder extends Seeder
 
                 $this->showProgress($index + 1, $poCount, 'Purchase Orders');
 
-                $allLinesReceived = true; // Flag untuk cek apakah semua lines diterima
+                $allLinesReceived = true;
 
-                // Seed Purchase Order Lines
                 for ($j = 0; $j < 15; $j++) {
-                    $qty = $faker->numberBetween(1, 10); // Jumlah barang
-                    $unitPrice = $faker->randomFloat(2, 100000, 50000000); // Harga per unit
+                    $qty = $faker->numberBetween(1, 10);
+                    $unitPrice = $faker->randomFloat(2, 100000, 50000000);
 
-                    // Jika ingin PO ini fully received
                     if ($makeFullyReceived) {
                         $receivedQty = $qty;
-                        $status = 2; // Fully received
+                        $status = 2;
                     } else {
                         $receivedQty = $faker->numberBetween(0, $qty);
-                        $status = $receivedQty == $qty ? 2 : $faker->numberBetween(0, 1); // Random status jika tidak full
+                        $status = $receivedQty == $qty ? 2 : $faker->numberBetween(0, 1);
                         if ($receivedQty < $qty) {
                             $allLinesReceived = false;
                         }
@@ -192,23 +202,21 @@ class DummyDataSeeder extends Seeder
                         'item_id' => $faker->randomElement($items),
                         'qty' => $qty,
                         'unit_price' => $unitPrice,
-                        'total_price' => $qty * $unitPrice, // Hitung total_price berdasarkan qty * unit_price
+                        'total_price' => $qty * $unitPrice,
                         'received_qty' => $receivedQty,
                         'status' => $status,
                         'description' => $faker->sentence,
                     ]);
                 }
 
-                // Update is_received dan is_closed jika semua lines diterima, kecuali untuk yang is_confirmed = false
                 if (($allLinesReceived || $makeFullyReceived) && !$makeNotConfirmed) {
                     $po->update([
                         'is_received' => true,
                         'is_closed' => true,
                     ]);
-                    $fullyReceivedCounter++; // Tambah counter untuk PO yang fully received
+                    $fullyReceivedCounter++;
                 }
 
-                // Tambah counter untuk PO yang tidak confirmed
                 if ($makeNotConfirmed) {
                     $notConfirmedCounter++;
                 }
@@ -219,9 +227,6 @@ class DummyDataSeeder extends Seeder
         $this->command->info("\nSeeding data selesai ✅");
     }
 
-    /**
-     * Show progress in the console.
-     */
     private function showProgress(int $current, int $total, string $section): void
     {
         $percent = intval(($current / $total) * 100);

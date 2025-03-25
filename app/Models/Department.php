@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Department extends Model
 {
@@ -14,18 +14,13 @@ class Department extends Model
         'name',
     ];
 
-    public function purchaseRequisitions(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function purchaseRequisitions(): HasMany
     {
         return $this->hasMany(\App\Models\PurchaseRequisition::class);
     }
 
-    public function userDepartments(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function Users(): HasMany
     {
-        return $this->hasMany(\App\Models\UserDepartment::class);
-    }
-
-    public function users(): BelongsToMany
-    {
-        return $this->belongsToMany(User::class, 'user_departments', 'department_id', 'user_id');
+        return $this->hasMany(User::class);
     }
 }

@@ -4,9 +4,30 @@ namespace App\Observers;
 
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderLine;
+use Illuminate\Support\Facades\Auth;
 
 class PurchaseOrderObserver
 {
+    public function creating(PurchaseOrder $purchaseOrder)
+    {
+        if (!$purchaseOrder->created_by) {
+            $purchaseOrder->created_by = Auth::id();
+        }
+        $purchaseOrder->updated_by = Auth::id();
+    }
+
+    /**
+     * Handle the PurchaseOrder "updating" event (sebelum update terjadi).
+     */
+    public function updating(PurchaseOrder $purchaseOrder)
+    {
+        $purchaseOrder->updated_by = Auth::id();
+
+        // Cegah perubahan `created_by`
+        if ($purchaseOrder->isDirty('created_by')) {
+            $purchaseOrder->created_by = $purchaseOrder->getOriginal('created_by');
+        }
+    }
     /**
      * Handle the PurchaseOrder "created" event.
      */

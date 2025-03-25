@@ -15,7 +15,7 @@ return new class extends Migration {
             $table->unsignedInteger('number')->length(10);
             $table->foreignId('purchase_type_id')->constrained('purchase_types')->cascadeOnDelete();
             $table->text('description');
-            $table->foreignId('requested_by')->constrained('user_departments')->cascadeOnDelete();
+            $table->foreignId('requested_by')->constrained('users')->cascadeOnDelete();
             $table->foreignId('department_id')->constrained('departments')->cascadeOnDelete();
             $table->unsignedTinyInteger('status')->length(1)->default(0);
             $table->date('approved_at')->nullable();

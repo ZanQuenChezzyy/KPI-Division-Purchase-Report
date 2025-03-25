@@ -21,14 +21,14 @@ class ListUsers extends ListRecords
             Actions\CreateAction::make()
                 ->label('Create User')
                 ->icon('heroicon-m-user-plus'),
-            ExportAction::make()
-                ->exporter(UserExporter::class)
-                ->label('Export Users')
-                ->icon('heroicon-m-document-arrow-up')
-                ->formats([
-                    ExportFormat::Xlsx,
-                    ExportFormat::Csv,
-                ])
+            // ExportAction::make()
+            //     ->exporter(UserExporter::class)
+            //     ->label('Export Users')
+            //     ->icon('heroicon-m-document-arrow-up')
+            //     ->formats([
+            //         ExportFormat::Xlsx,
+            //         ExportFormat::Csv,
+            //     ])
         ];
     }
 }

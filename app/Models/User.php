@@ -5,8 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Filament\Models\Contracts\HasAvatar;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
@@ -26,6 +25,7 @@ class User extends Authenticatable implements HasAvatar
         'name',
         'email',
         'avatar_url',
+        'department_id',
         'password',
     ];
 
@@ -57,13 +57,8 @@ class User extends Authenticatable implements HasAvatar
         return $this->avatar_url ? Storage::url($this->avatar_url) : null;
     }
 
-    public function userDepartments(): HasMany
+    public function department(): BelongsTo
     {
-        return $this->hasMany(UserDepartment::class);
-    }
-
-    public function departments(): BelongsToMany
-    {
-        return $this->belongsToMany(Department::class, 'user_departments', 'user_id', 'department_id');
+        return $this->belongsTo(Department::class, 'department_id', 'id');
     }
 }

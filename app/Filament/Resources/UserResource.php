@@ -94,7 +94,7 @@ class UserResource extends Resource
                                 Select::make('department')
                                     ->label('Department')
                                     ->placeholder('Select Department')
-                                    ->relationship('departments', 'name')
+                                    ->relationship('department', 'name')
                                     ->native(false)
                                     ->preload()
                                     ->searchable()
