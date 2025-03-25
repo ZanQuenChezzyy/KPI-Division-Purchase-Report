@@ -587,14 +587,14 @@ class PurchaseRequisitionResource extends Resource
             ->bulkActions([
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),
-                    ExportBulkAction::make()
-                        ->label('Export Selected')
-                        ->icon('heroicon-s-document-arrow-up')
-                        ->exporter(PurchaseRequisitionExporter::class)
-                        ->formats([
-                            ExportFormat::Xlsx,
-                            ExportFormat::Csv,
-                        ]),
+                    // ExportBulkAction::make()
+                    //     ->label('Export Selected')
+                    //     ->icon('heroicon-s-document-arrow-up')
+                    //     ->exporter(PurchaseRequisitionExporter::class)
+                    //     ->formats([
+                    //         ExportFormat::Xlsx,
+                    //         ExportFormat::Csv,
+                    //     ]),
                 ]),
             ]);
     }

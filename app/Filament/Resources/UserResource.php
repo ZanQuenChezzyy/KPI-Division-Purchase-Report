@@ -266,8 +266,8 @@ class UserResource extends Resource
                             session()->flash('message', 'Selected accounts were deleted, except for your own account.');
                         })
                         ->requiresConfirmation(),
-                    ExportBulkAction::make()
-                        ->exporter(UserExporter::class)
+                    // ExportBulkAction::make()
+                    //     ->exporter(UserExporter::class)
                 ]),
             ]);
     }
