@@ -219,6 +219,11 @@ class UserResource extends Resource
                     ->html()
                     ->searchable(['name', 'email']),
 
+                TextColumn::make('department.name')
+                    ->label('Department')
+                    ->badge()
+                    ->color('primary'),
+
                 TextColumn::make('roles.name')
                     ->label('Role')
                     ->colors([
