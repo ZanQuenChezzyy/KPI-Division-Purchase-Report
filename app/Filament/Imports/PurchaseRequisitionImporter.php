@@ -20,10 +20,13 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
+// Kelas Importer untuk data Purchase Requisition
 class PurchaseRequisitionImporter extends Importer
 {
+    // Model utama yang digunakan oleh importer ini
     protected static ?string $model = PurchaseRequisition::class;
 
+    // Fungsi ini menentukan kolom-kolom yang wajib ada dan bagaimana memetakannya saat import
     public static function getColumns(): array
     {
         return [
@@ -43,12 +46,15 @@ class PurchaseRequisitionImporter extends Importer
         ];
     }
 
+    // Fungsi utama yang dipanggil saat tiap baris data diimpor; membuat atau update PR
     public function resolveRecord(): ?PurchaseRequisition
     {
         try {
+            // Cek apakah PR dengan nomor yang sama sudah ada
             $existingPR = PurchaseRequisition::where('number', $this->data['number'])->first();
 
             if ($existingPR) {
+                // Jika sudah ada, update data yang diperlukan
                 Log::info('Purchase Requisition dengan nomor ini sudah ada:', ['number' => $this->data['number']]);
 
                 $existingPR->update([
@@ -60,6 +66,7 @@ class PurchaseRequisitionImporter extends Importer
 
                 Log::info('Purchase Requisition diperbarui:', ['id' => $existingPR->id]);
 
+                // Jika ada data items, sinkronisasi ulang
                 if (!empty($this->data['items'])) {
                     $this->syncItemsWithPurchaseRequisition($existingPR, $this->data['items']);
                 }
@@ -67,17 +74,16 @@ class PurchaseRequisitionImporter extends Importer
                 return $existingPR;
             }
 
+            // Jika belum ada, mulai proses buat PR baru
             $requestedByName = trim($this->data['requested_by']);
             $departmentName = trim($this->data['department_id']);
             $purchaseTypeId = (int) current(explode('.', trim($this->data['purchase_type_id'])));
             $department = Department::firstOrCreate(['name' => $departmentName]);
 
+            // Cek dan parse tanggal created_at
             $createdAt = null;
-
-            // Pastikan data created_at tidak kosong
             if (!empty($this->data['created_at'])) {
                 try {
-                    // Parsing tanggal dan set waktu default 00:00:00
                     $createdAt = Carbon::parse($this->data['created_at'])->format('Y-m-d') . ' 00:00:00';
                 } catch (\Exception $e) {
                     Log::warning('Format tanggal created_at tidak valid:', [
@@ -87,7 +93,7 @@ class PurchaseRequisitionImporter extends Importer
                 }
             }
 
-            // Jika parsing gagal atau null, jangan gunakan now(), tetap null
+            // Jika tanggal tidak valid, hentikan import
             if (!$createdAt) {
                 Log::error('Nilai created_at tidak valid atau kosong, tidak menyimpan PR:', [
                     'number' => $this->data['number'],
@@ -95,7 +101,7 @@ class PurchaseRequisitionImporter extends Importer
                 return null;
             }
 
-
+            // Buat user jika belum ada
             $user = User::firstOrCreate(
                 ['name' => $requestedByName],
                 [
@@ -106,6 +112,7 @@ class PurchaseRequisitionImporter extends Importer
             );
             $user->assignRole('User');
 
+            // Buat record PR baru
             $purchaseRequisition = PurchaseRequisition::create([
                 'number' => $this->data['number'],
                 'purchase_type_id' => $purchaseTypeId,
@@ -120,17 +127,19 @@ class PurchaseRequisitionImporter extends Importer
 
             Log::info('Purchase Requisition baru dibuat:', ['id' => $purchaseRequisition->id]);
 
+            // Sinkronisasi item PR jika ada
             if (!empty($this->data['items'])) {
                 $this->syncItemsWithPurchaseRequisition($purchaseRequisition, $this->data['items']);
             }
 
-            // Jika status PR = 1, buat Purchase Order
+            // Jika status PR = 1, otomatis buatkan PO
             if ($purchaseRequisition->status == 1) {
                 $this->createPurchaseOrderFromRequisition($purchaseRequisition);
             }
 
             return $purchaseRequisition;
         } catch (\Exception $e) {
+            // Tangani error saat proses import
             Log::error('Error saat import:', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
@@ -139,15 +148,14 @@ class PurchaseRequisitionImporter extends Importer
         }
     }
 
+    // Fungsi untuk parse tanggal dari berbagai format ke format standar Y-m-d
     private function parseDate($date)
     {
         if (empty($date)) {
             return null;
         }
 
-        // Coba beberapa format umum yang digunakan
         $formats = ['d/m/Y', 'Y-m-d', 'm/d/Y'];
-
         foreach ($formats as $format) {
             try {
                 return Carbon::createFromFormat($format, $date)->format('Y-m-d');
@@ -156,11 +164,11 @@ class PurchaseRequisitionImporter extends Importer
             }
         }
 
-        // Jika tidak cocok, log error dan return null
         Log::warning("Format tanggal tidak dikenali: $date");
         return null;
     }
 
+    // Fungsi untuk sinkronisasi antara PR dan item-itemnya
     private function syncItemsWithPurchaseRequisition(PurchaseRequisition $purchaseRequisition, string $itemsJson): void
     {
         try {
@@ -226,24 +234,25 @@ class PurchaseRequisitionImporter extends Importer
         }
     }
 
+    // Fungsi untuk otomatis membuat Purchase Order dari PR jika status PR = 1
     private function createPurchaseOrderFromRequisition(PurchaseRequisition $purchaseRequisition)
     {
         try {
             Log::info('Membuat Purchase Order untuk PR:', ['pr_id' => $purchaseRequisition->id]);
 
-            // Ambil nama vendor dan buyer dari data PR (pastikan kolom ini ada di CSV)
             $vendorName = trim($this->data['vendor'] ?? '');
             $buyerName = trim($this->data['buyer'] ?? '');
             $departmentName = trim($this->data['department_id']);
+            $vendorType = isset($this->data['vendor_type']) && is_numeric(trim($this->data['vendor_type']))
+                ? (int) trim($this->data['vendor_type'])
+                : 0;
 
-            // Cari atau buat vendor
-            $vendor = !empty($vendorName) ? Vendor::firstOrCreate([
-                'name' => $vendorName,
-                'type' => rand(0, 1) // Menghasilkan angka 0 atau 1 secara acak
-            ]) : null;
+            $vendor = !empty($vendorName)
+                ? Vendor::firstOrCreate(['name' => $vendorName], ['type' => $vendorType])
+                : null;
+
             $department = Department::firstOrCreate(['name' => $departmentName]);
 
-            // Cari atau buat buyer (User)
             if (!empty($buyerName)) {
                 $buyer = User::firstOrCreate(
                     ['name' => $buyerName],
@@ -255,14 +264,14 @@ class PurchaseRequisitionImporter extends Importer
                 );
                 $buyer->assignRole('User');
             } else {
-                $buyer = User::find($purchaseRequisition->requested_by); // Default ke requested_by jika buyer kosong
+                $buyer = User::find($purchaseRequisition->requested_by);
             }
 
             $purchaseOrder = PurchaseOrder::create([
                 'purchase_requisition_id' => $purchaseRequisition->id,
-                'vendor_id' => $vendor ? $vendor->id : null, // Gunakan vendor yang ditemukan atau null
-                'buyer' => $buyer->id, // Set buyer berdasarkan data dari CSV atau requested_by
-                'eta' => null, // ETA bisa ditentukan nanti
+                'vendor_id' => $vendor ? $vendor->id : null,
+                'buyer' => $buyer->id,
+                'eta' => null,
                 'mar_no' => null,
                 'is_confirmed' => true,
                 'is_received' => false,
@@ -280,7 +289,7 @@ class PurchaseRequisitionImporter extends Importer
                 $existingPoLine = PurchaseOrderLine::where('purchase_order_id', $purchaseOrder->id)
                     ->where('purchase_requisition_item_id', $prItem->id)
                     ->first();
-            
+
                 if (!$existingPoLine) {
                     $poLine = PurchaseOrderLine::create([
                         'purchase_order_id' => $purchaseOrder->id,
@@ -293,7 +302,7 @@ class PurchaseRequisitionImporter extends Importer
                         'status' => 1,
                         'description' => $prItem->Item->name,
                     ]);
-            
+
                     Log::info('Purchase Order Line dibuat:', ['po_line_id' => $poLine->id]);
                 } else {
                     Log::info('Purchase Order Line sudah ada, tidak dibuat ulang.', [
@@ -314,13 +323,14 @@ class PurchaseRequisitionImporter extends Importer
         }
     }
 
-
+    // Fungsi pengecekan apakah sebuah string adalah JSON array
     private function isJsonArray($string)
     {
         json_decode($string, true);
         return json_last_error() === JSON_ERROR_NONE && str_starts_with(trim($string), '[');
     }
 
+    // Fungsi untuk menampilkan pesan notifikasi ketika proses import selesai
     public static function getCompletedNotificationBody(Import $import): string
     {
         return "Your import has completed with {$import->successful_rows} successful rows and {$import->getFailedRowsCount()} failed rows.";

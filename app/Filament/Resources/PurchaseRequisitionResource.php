@@ -387,14 +387,14 @@ class PurchaseRequisitionResource extends Resource
                                     })
                                     ->formatStateUsing(fn(int $state): string => match ($state) {
                                         0 => 'Pending',
-                                        1 => 'Cancelled',
-                                        2 => 'Approved',
+                                        1 => 'Approved',
+                                        2 => 'Cancelled',
                                         default => 'Status Tidak Diketahui',
                                     })
                                     ->color(fn(int $state): string => match ($state) {
                                         0 => 'warning',
-                                        1 => 'danger',
-                                        2 => 'success',
+                                        1 => 'success',
+                                        2 => 'danger',
                                         default => 'gray',
                                     }),
                                 TextEntry::make('approved_at')
@@ -511,19 +511,19 @@ class PurchaseRequisitionResource extends Resource
                     ->badge()
                     ->icon(fn(int $state): string => match ($state) {
                         0 => 'heroicon-o-clock',
-                        1 => 'heroicon-o-x-circle',
-                        2 => 'heroicon-o-check-circle',
+                        1 => 'heroicon-o-check-circle',
+                        2 => 'heroicon-o-x-circle',
                     })
                     ->formatStateUsing(fn(int $state): string => match ($state) {
                         0 => 'Pending',
-                        1 => 'Cancelled',
-                        2 => 'Approved',
+                        1 => 'Approved',
+                        2 => 'Cancelled',
                         default => 'Status Tidak Diketahui',
                     })
                     ->color(fn(int $state): string => match ($state) {
                         0 => 'warning',
-                        1 => 'danger',
-                        2 => 'success',
+                        1 => 'success',
+                        2 => 'danger',
                         default => 'gray',  // Jika status tidak diketahui
                     }),
 
@@ -555,8 +555,8 @@ class PurchaseRequisitionResource extends Resource
                     ->placeholder('Select Status')
                     ->options([
                         0 => 'Pending',
-                        1 => 'Cancelled',
-                        2 => 'Approved',
+                        1 => 'Approved',
+                        2 => 'Cancelled',
                     ])
                     ->native(false)
                     ->preload()

@@ -61,8 +61,10 @@ class VendorResource extends Resource
                     ->label('Vendor Type')
                     ->placeholder('Select Vendor Type')
                     ->options([
-                        0 => 'International',
-                        1 => 'Domestic',
+                        0 => 'None',
+                        1 => 'International',
+                        2 => 'Domestic',
+                        3 => 'Contractor',
                     ])
                     ->native(false)
                     ->preload()
@@ -82,9 +84,11 @@ class VendorResource extends Resource
                 TextColumn::make('type')
                     ->badge()
                     ->formatStateUsing(fn(int $state): string => match ($state) {
-                        0 => 'International',
-                        1 => 'Domestic',
-                        default => 'Status Tidak Diketahui',
+                        0 => 'None',
+                        1 => 'International',
+                        2 => 'Domestic',
+                        3 => 'Contractor',
+                        default => 'Unknown',
                     })
                     ->color('info'),
             ])

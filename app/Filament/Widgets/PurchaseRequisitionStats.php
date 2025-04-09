@@ -20,10 +20,10 @@ class PurchaseRequisitionStats extends BaseWidget
         $totalPR = PurchaseRequisition::count();
 
         // PR Approved
-        $successfulPR = PurchaseRequisition::where('status', 2)->count();
+        $successfulPR = PurchaseRequisition::where('status', 1)->count();
 
         // PR Cancelled
-        $cancelledPR = PurchaseRequisition::where('status', 1)->count();
+        $cancelledPR = PurchaseRequisition::where('status', 2)->count();
 
         // Total PR Items
         $totalPRItems = PurchaseRequisitionItem::count();
@@ -37,13 +37,13 @@ class PurchaseRequisitionStats extends BaseWidget
                 ->description("{$successfulPR} / {$totalPR} PR Approved")
                 ->descriptionIcon('heroicon-o-check-circle')
                 ->color('success')
-                ->chart($this->getTrendsByStatus(2, 'approved_at')),
+                ->chart($this->getTrendsByStatus(1, 'approved_at')),
 
             Stat::make('Purchase Requisition Cancelled', "{$cancelRate}%")
                 ->description("{$cancelledPR} / {$totalPR} PR Cancelled")
                 ->descriptionIcon('heroicon-o-x-circle')
                 ->color('danger')
-                ->chart($this->getTrendsByStatus(1, 'cancelled_at')),
+                ->chart($this->getTrendsByStatus(2, 'cancelled_at')),
 
             Stat::make('Total Purchase Requisition', "{$totalPR}")
                 ->description('Total Purchase Requisitions')

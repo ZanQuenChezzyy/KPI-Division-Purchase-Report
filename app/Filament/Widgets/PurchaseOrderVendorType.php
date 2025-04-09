@@ -21,27 +21,29 @@ class PurchaseOrderVendorType extends ChartWidget
 
     protected function getData(): array
     {
-        // Ambil 5 tahun terakhir
         $years = collect(range(now()->subYears(4)->year, now()->year));
 
-        // Ambil semua tipe vendor
-        $vendorTypes = Vendor::distinct()->pluck('type');
-
-        // Data hasil query
         $data = PurchaseOrder::query()
             ->join('vendors', 'purchase_orders.vendor_id', '=', 'vendors.id')
-            ->selectRaw('YEAR(purchase_orders.created_at) as year, vendors.type as vendor_type, COUNT(purchase_orders.id) as total_orders')
-            ->whereYear('purchase_orders.created_at', '>=', now()->subYears(4)->year)
+            ->join('purchase_requisitions', 'purchase_orders.purchase_requisition_id', '=', 'purchase_requisitions.id')
+            ->selectRaw('YEAR(purchase_requisitions.created_at) as year, vendors.type as vendor_type, COUNT(purchase_orders.id) as total_orders')
+            ->whereYear('purchase_requisitions.created_at', '>=', now()->subYears(4)->year)
+            ->where('vendors.type', '!=', 0)
             ->groupBy('year', 'vendor_type')
             ->orderBy('year')
-            ->get();
+            ->get()
+            ->map(function ($row) {
+                $row->vendor_type_label = $this->vendorTypeLabels[$row->vendor_type] ?? 'Unknown';
+                return $row;
+            });
 
-        // Inisialisasi datasets
-        $datasets = $vendorTypes->map(function ($type) use ($years, $data) {
+        $vendorTypes = $data->pluck('vendor_type_label')->unique();
+
+        $datasets = $vendorTypes->map(function ($typeLabel) use ($years, $data) {
             return [
-                'label' => $type,
-                'data' => $years->map(fn($year) => $data->where('vendor_type', $type)->where('year', $year)->sum('total_orders'))->toArray(),
-                'backgroundColor' => $this->generateColor($type),
+                'label' => $typeLabel,
+                'data' => $years->map(fn($year) => $data->where('vendor_type_label', $typeLabel)->where('year', $year)->sum('total_orders'))->toArray(),
+                'backgroundColor' => $this->generateColor($typeLabel),
                 'borderWidth' => 0,
                 'borderRadius' => 5,
             ];
@@ -57,6 +59,13 @@ class PurchaseOrderVendorType extends ChartWidget
     {
         return 'bar';
     }
+
+    protected array $vendorTypeLabels = [
+        0 => 'Foreign',
+        1 => 'International',
+        2 => 'Domestic',
+        3 => 'Contractor',
+    ];
 
     private function generateColor(string $type): string
     {

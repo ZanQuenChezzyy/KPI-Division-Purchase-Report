@@ -35,9 +35,9 @@ class PurchaseRequisitionPerYear extends ChartWidget
         // Proses data berdasarkan status
         foreach ($data as $item) {
             $totalPR[$item->year] += $item->total;
-            if ($item->status == 2) {
+            if ($item->status == 1) {
                 $approvedPR[$item->year] = $item->total;
-            } elseif ($item->status == 1) {
+            } elseif ($item->status == 2) {
                 $cancelledPR[$item->year] = $item->total;
             }
         }
@@ -45,18 +45,18 @@ class PurchaseRequisitionPerYear extends ChartWidget
         return [
             'datasets' => [
                 [
-                    'label' => 'Approved',
-                    'data' => array_values($approvedPR),
-                    'backgroundColor' => 'rgba(34, 197, 94, 0.5)', // Warna biru dengan opacity 0.5
-                    'borderWidth' => 0, // Tidak ada border
-                    'borderRadius' => 5, // Border radius 5
-                ],
-                [
                     'label' => 'Cancelled',
                     'data' => array_values($cancelledPR),
                     'backgroundColor' => 'rgba(255, 0, 0, 0.5)', // Warna merah dengan opacity 0.5
                     'borderWidth' => 0,
                     'borderRadius' => 5,
+                ],
+                [
+                    'label' => 'Approved',
+                    'data' => array_values($approvedPR),
+                    'backgroundColor' => 'rgba(34, 197, 94, 0.5)', // Warna biru dengan opacity 0.5
+                    'borderWidth' => 0, // Tidak ada border
+                    'borderRadius' => 5, // Border radius 5
                 ],
                 [
                     'label' => 'Total PR',

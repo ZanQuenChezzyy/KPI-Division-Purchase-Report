@@ -6,6 +6,7 @@ use App\Filament\Resources\PurchaseOrderResource\Pages;
 use App\Filament\Resources\PurchaseOrderResource\RelationManagers;
 use App\Filament\Resources\PurchaseOrderResource\RelationManagers\PurchaseOrderLinesRelationManager;
 use App\Models\PurchaseOrder;
+use App\Models\User;
 use Closure;
 use Filament\Forms;
 use Filament\Forms\Components\DatePicker;
@@ -127,8 +128,10 @@ class PurchaseOrderResource extends Resource
                                         ->label('Vendor Type')
                                         ->placeholder('Select Vendor Type')
                                         ->options([
-                                            0 => 'International',
-                                            1 => 'Domestic',
+                                            0 => 'None',
+                                            1 => 'International',
+                                            2 => 'Domestic',
+                                            3 => 'Contractor',
                                         ])
                                         ->native(false)
                                         ->preload()
@@ -149,6 +152,7 @@ class PurchaseOrderResource extends Resource
                                 'name',
                                 fn($query) => $query->whereHas('department', fn($q) => $q->where('name', 'Logistic')) // Filter berdasarkan nama department
                             )
+                            ->getOptionLabelUsing(fn($value): ?string => User::find($value)?->name)
                             ->native(false)
                             ->preload()
                             ->searchable()
@@ -212,7 +216,7 @@ class PurchaseOrderResource extends Resource
                                         ->afterStateUpdated(function ($state, Set $set, Get $get) {
                                             if ($state) { // Cek jika user mencoba mengaktifkan toggle
                                                 $purchaseOrderId = $get('id'); // Ambil ID Purchase Order
-
+                                
                                                 // Cek apakah ada item yang belum berstatus '2' (Received)
                                                 $hasUnreceivedItems = \App\Models\PurchaseOrderLine::where('purchase_order_id', $purchaseOrderId)
                                                     ->where('status', '!=', 2)
@@ -247,7 +251,7 @@ class PurchaseOrderResource extends Resource
                                             // Cek jika user mencoba mengaktifkan toggle
                                             if ($state) {
                                                 $isReceived = $get('is_received'); // Ambil status is_received
-
+                                
                                                 // Jika belum received, tolak aktivasi
                                                 if (!$isReceived) {
                                                     $set('is_closed', false); // Kembalikan toggle ke off
@@ -363,14 +367,17 @@ class PurchaseOrderResource extends Resource
                 TextColumn::make('vendor.name')
                     ->label('Vendor')
                     ->default('No Vendor')
-                    ->description(fn(PurchaseOrder $record): string => 
-                        isset($record->vendor) 
-                            ? match ($record->vendor->type) {
-                                0 => 'International',
-                                1 => 'Domestic',
-                                default => 'Unknown',
-                            }
-                            : 'No Type' 
+                    ->description(
+                        fn(PurchaseOrder $record): string =>
+                        isset($record->vendor)
+                        ? match ($record->vendor->type) {
+                            0 => 'Foreign',
+                            1 => 'International',
+                            2 => 'Domestic',
+                            3 => 'Contractor',
+                            default => 'Unknown',
+                        }
+                        : 'No Type'
                     ),
 
                 TextColumn::make('user.name')

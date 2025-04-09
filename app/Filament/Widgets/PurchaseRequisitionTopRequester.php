@@ -21,9 +21,10 @@ class PurchaseRequisitionTopRequester extends BaseWidget
             ->description('A list of Requester ranked by the number of purchase requisitions they have made.')
             ->query(
                 PurchaseRequisition::query()
-                    ->join('users', 'purchase_requisitions.requested_by', '=', 'users.id') // Hapus user_departments
-                    ->selectRaw('users.id, users.name as requester_name, COUNT(purchase_requisitions.id) as total_requests')
-                    ->groupBy('users.id', 'users.name')
+                    ->join('users', 'purchase_requisitions.requested_by', '=', 'users.id')
+                    ->join('departments', 'users.department_id', '=', 'departments.id') // Join ke departments
+                    ->selectRaw('users.id, users.name as requester_name, departments.name as department_name, COUNT(purchase_requisitions.id) as total_requests')
+                    ->groupBy('users.id', 'users.name', 'departments.name')
                     ->orderByDesc('total_requests')
             )
             ->columns([
@@ -32,6 +33,8 @@ class PurchaseRequisitionTopRequester extends BaseWidget
                     ->rowIndex(),
                 TextColumn::make('requester_name')
                     ->label('Requester Name'),
+                TextColumn::make('department_name') // Tambahan kolom department
+                    ->label('Department'),
                 TextColumn::make('total_requests')
                     ->label('Total PRs'),
             ])

@@ -12,7 +12,7 @@ return new class extends Migration {
     {
         Schema::create('vendors', function (Blueprint $table) {
             $table->id();
-            $table->string('name', 45);
+            $table->text('name');
             $table->unsignedTinyInteger('type');
             $table->timestamps();
         });
