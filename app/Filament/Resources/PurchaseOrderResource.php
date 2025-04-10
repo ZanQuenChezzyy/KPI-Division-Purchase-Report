@@ -76,23 +76,19 @@ class PurchaseOrderResource extends Resource
                                 'id',
                                 function (Builder $query, ?PurchaseOrder $record) {
                                     if ($record === null) {
-                                        // Saat CREATE, tampilkan hanya PR yang belum ada di PO
-                                        $search = request('search'); // Ambil nilai pencarian dari request
-                                        $query->where('status', 2)
+                                        $search = request('search');
+                                        $query->where('status', 1)
                                             ->whereNotIn('id', function ($subQuery) {
-                                            $subQuery->select('purchase_requisition_id')->from('purchase_orders');
-                                        })
-                                            ->when(!empty($search), function ($query) use ($search) {
-                                            $query->where(function ($q) use ($search) {
-                                                $q->where('number', 'like', "%{$search}%")
-                                                    ->orWhereHas('user', function ($q) use ($search) {
-                                                        $q->where('name', 'like', "%{$search}%");
-                                                    });
+                                                $subQuery->select('purchase_requisition_id')->from('purchase_orders');
+                                            })
+                                            ->when($search, function ($query) use ($search) {
+                                                $query->where(function ($q) use ($search) {
+                                                    $q->where('number', 'like', "%{$search}%")
+                                                        ->orWhereHas('user', fn($q) => $q->where('name', 'like', "%{$search}%"));
+                                                });
                                             });
-                                        });
                                     } else {
-                                        // Saat EDIT, hanya filter status = 2 agar data tetap tampil
-                                        $query->where('status', 2);
+                                        $query->where('status', 1);
                                     }
                                 }
                             )
@@ -100,15 +96,18 @@ class PurchaseOrderResource extends Resource
                             ->preload()
                             ->columnSpanFull()
                             ->noSearchResultsMessage('No Purchase Requisition found.')
-                            ->searchable(['number']) // Tetap menyertakan 'number' agar fitur searchable Filament bisa bekerja dengan baik
+                            ->searchable(['number'])
                             ->getOptionLabelFromRecordUsing(function (Model $record) {
                                 $number = $record->number;
-                                $type = $record->purchaseType->name;
-                                $requestedBy = optional($record->user)->name ?? 'Unknown'; // Menghindari error jika user tidak ada
-                                $department = $record->department->name;
+                                $type = $record->purchaseType->name ?? '-';
+                                $requestedBy = optional($record->user)->name ?? 'Unknown';
+                                $department = $record->department->name ?? '-';
 
                                 return "($number) - $type [$requestedBy, $department]";
                             })
+                            ->getOptionLabelsUsing(fn($records) => $records->mapWithKeys(fn($record) => [
+                                $record->id => "({$record->number}) - {$record->purchaseType->name} [{$record->user->name}, {$record->department->name}]"
+                            ]))
                             ->required(),
 
                         Select::make('vendor_id')

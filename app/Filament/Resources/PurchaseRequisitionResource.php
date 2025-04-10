@@ -154,8 +154,8 @@ class PurchaseRequisitionResource extends Resource
                                     ->placeholder('Select Purchase Requisition Status')
                                     ->options([
                                         0 => 'Pending',
-                                        1 => 'Cancelled',
-                                        2 => 'Approved',
+                                        1 => 'Approved',
+                                        2 => 'Cancelled',
                                     ])
                                     ->native(false)
                                     ->preload()
@@ -382,8 +382,8 @@ class PurchaseRequisitionResource extends Resource
                                     ->badge()
                                     ->icon(fn(int $state): string => match ($state) {
                                         0 => 'heroicon-o-clock',
-                                        1 => 'heroicon-o-x-circle',
-                                        2 => 'heroicon-o-check-circle',
+                                        1 => 'heroicon-o-check-circle',
+                                        2 => 'heroicon-o-x-circle',
                                     })
                                     ->formatStateUsing(fn(int $state): string => match ($state) {
                                         0 => 'Pending',
@@ -488,7 +488,7 @@ class PurchaseRequisitionResource extends Resource
                 }
 
                 // Order by status terbaru duluan, lalu berdasarkan tanggal dibuat
-                $query->orderByRaw("FIELD(status, 0, 1, 2)")->orderByDesc('created_at');
+                $query->orderByRaw("FIELD(status, 0, 2, 1)")->orderByDesc('created_at');
             })
             ->defaultGroup(Auth::user()->hasRole('User') ? 'Department.name' : null)
             ->columns([
